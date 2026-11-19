@@ -618,6 +618,159 @@ test("widths don't depend on window options (wrap + linebreak + breakindent)", f
     eq(lines()[1], "+-" .. ("-"):rep(#long) .. "-+---+")
 end)
 
+-- Pipe tables ------------------------------------------------------------------
+
+local PIPE = {
+    "| Nombre     | Edad |",
+    "| :--------- | ---: |",
+    "| Ana        |   30 |",
+    "| José María |    4 |",
+}
+
+test("pipe: realign matches prettier, outer pipes added", function()
+    buf({ "a | b", "--|:-:", "1 | 22" }, { 1, 0 })
+    gt.call("align")
+    eq(lines(), { "| a   |  b  |", "| --- | :-: |", "| 1   | 22  |" })
+end)
+
+test("pipe: a paragraph line with a pipe above the header isn't part of it", function()
+    buf({ "texto | con pipe", "| a | b |", "|---|---|", "| 1 | 2 |" }, { 4, 2 })
+    gt.call("align")
+    eq(lines()[1], "texto | con pipe")
+    eq(lines()[2], "| a   | b   |")
+end)
+
+test("pipe: Tab/CR navigation and the cursor in a right-aligned cell", function()
+    buf(PIPE, { 3, 2 })
+    keys("<Tab>")
+    eq(cell_text(), "30")
+    keys("<CR>")
+    eq(cell_text(), "4")
+    keys("<S-CR><S-Tab>")
+    eq(cell_text(), "Ana")
+    api.nvim_win_set_cursor(0, { 4, 20 }) -- on "4" (é and í are two bytes each)
+    gt.call("align")
+    eq(cursor(), { 4, 20 })
+end)
+
+test("pipe: new rows are single lines, no borders", function()
+    buf(PIPE, { 4, 20 })
+    keys("<Tab>")
+    eq(lines()[5], "|            |      |")
+    eq(cursor(), { 5, 2 })
+    keys("<A-o>")
+    eq(#lines(), 6)
+end)
+
+test("pipe: delete rows with a count; the header stays", function()
+    buf(PIPE, { 3, 2 })
+    keys("5\\tdr") -- clamped: keeps one body row
+    eq(lines(), { "| Nombre     | Edad |", "| :--------- | ---: |", "| José María |    4 |" })
+    eq(vim.fn.getreg('"'), "| Ana        |   30 |\n")
+    buf(PIPE, { 1, 2 })
+    keys("\\tdr")
+    eq(lines(), PIPE)
+end)
+
+test("pipe: columns and alignment", function()
+    buf(PIPE, { 3, 2 })
+    keys("\\tic")
+    eq(lines()[2], "| :--------- | --- | ---: |")
+    keys("<A-l>")
+    eq(lines()[1], "| Nombre     | Edad |     |")
+    eq(lines()[2], "| :--------- | ---: | --- |")
+    buf(PIPE, { 3, 2 })
+    keys("\\tA") -- left -> center
+    eq(lines()[2], "| :--------: | ---: |")
+    eq(lines()[3], "|    Ana     |   30 |")
+end)
+
+test("pipe: sort keeps the header", function()
+    buf(PIPE, { 3, 2 })
+    keys("\\tS")
+    eq(lines()[3], "| José María |    4 |")
+    eq(lines()[1], PIPE[1])
+end)
+
+test("pipe: grid-only actions refuse", function()
+    for _, k in ipairs({ "<A-CR>", "\\th", "\\tb" }) do
+        buf(PIPE, { 3, 2 })
+        keys(k)
+        eq(lines(), PIPE, k)
+    end
+end)
+
+test("pipe: a typed | inside a row is escaped", function()
+    buf(PIPE, { 3, 4 })
+    keys("a | x<Esc>")
+    eq(lines()[3], "| Ana \\| x   |   30 |")
+end)
+
+test("convert toggles grid -> pipe -> grid, handling prettier markers", function()
+    local G = {
+        "<!-- prettier-ignore-start -->",
+        "",
+        "+---+---+",
+        "| a | b |",
+        "+:==+==:+",
+        "| 1 | 2 |",
+        "+---+---+",
+        "",
+        "<!-- prettier-ignore-end -->",
+    }
+    buf(G, { 6, 6 }) -- on "2"
+    keys("\\tc")
+    eq(lines(), { "| a   |   b |", "| :-- | --: |", "| 1   |   2 |" })
+    eq(cell_text(), "2")
+    keys("\\tc")
+    eq(lines(), G)
+    eq(cell_text(), "2")
+end)
+
+test("convert to pipe refuses multi-line rows and headerless tables", function()
+    buf(MULTI, { 2, 2 })
+    keys("\\tc")
+    eq(lines(), MULTI)
+    buf({ "+---+", "| a |", "+---+" }, { 2, 2 })
+    keys("\\tc")
+    eq(lines(), { "+---+", "| a |", "+---+" })
+end)
+
+test("insert_table in pipe format", function()
+    buf({ "" }, { 1, 0 })
+    require("gridtable.convert").insert_table("Uno, Dos", "pipe")
+    vim.cmd.stopinsert()
+    eq(lines(), { "| Uno | Dos |", "| --- | --- |", "|     |     |" })
+    eq(cursor(), { 3, 2 })
+    buf({ "" }, { 1, 0 })
+    require("gridtable.convert").insert_table("2", "pipe")
+    vim.cmd.stopinsert()
+    eq(lines()[1], "|     |     |")
+end)
+
+test('new_table_format = "ask" offers the last choice first', function()
+    local offered = {}
+    local sel, inp = vim.ui.select, vim.ui.input
+    vim.ui.select = function(items, _, cb)
+        offered[#offered + 1] = items[1]
+        cb("pipe")
+    end
+    vim.ui.input = function(_, cb)
+        cb("A, B")
+    end
+    gt.config.new_table_format = "ask"
+    buf({ "" }, { 1, 0 })
+    gt.call("new_table")
+    vim.cmd.stopinsert()
+    eq(lines()[2], "| --- | --- |")
+    buf({ "" }, { 1, 0 })
+    gt.call("new_table")
+    vim.cmd.stopinsert()
+    gt.config.new_table_format = "grid"
+    vim.ui.select, vim.ui.input = sel, inp
+    eq(offered, { "grid", "pipe" })
+end)
+
 test("try() runs an action only inside a table", function()
     buf({ "a" }, { 1, 0 })
     eq(gt.try("next_cell"), false)

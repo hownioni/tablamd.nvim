@@ -1,8 +1,8 @@
 # gridtable.nvim
 
-Edit [Pandoc grid tables](https://pandoc.org/MANUAL.html#extension-grid_tables) in Markdown
-from Neovim: realign as you type, move between cells, and add, delete, move and sort rows and
-columns.
+Edit Markdown tables from Neovim: [Pandoc grid tables](https://pandoc.org/MANUAL.html#extension-grid_tables)
+and ordinary pipe tables. Realign as you type, move between cells, add, delete, move and sort rows
+and columns, and convert between the two formats.
 
 ```
 +------------+-----+
@@ -15,9 +15,15 @@ columns.
 +------------+-----+
 ```
 
+```
+| Nombre     | Edad |
+| :--------- | ---: |
+| Ana        |   30 |
+| José María |    4 |
+```
+
 It's pure Lua: the table is parsed and re-rendered without a pandoc round-trip, so cell text is
-kept exactly as written. Widths use `strdisplaywidth`, so accents and wide characters align.
-Pandoc is only needed for `convert`.
+kept exactly as written. Accents and wide characters align. Pandoc is only needed for `\tC`.
 
 Requires Neovim 0.10+.
 
@@ -37,9 +43,10 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 
 | Default key       | Action              | What it does                                                                |
 | ----------------- | ------------------- | --------------------------------------------------------------------------- |
-| `\tn`             | `new_table`         | Ask for headers (`A, B, C`) or a column count (`3`) and insert a table      |
+| `\tn`             | `new_table`         | Ask for headers (`A, B, C`) or a column count (`3`) and insert a table (format: `new_table_format`) |
 | `\ta`             | `align`             | Realign the table (also done automatically on `InsertLeave`)                |
-| `\tc`             | `convert`           | Convert a pipe/simple/grid table to a grid table with pandoc (visual too)   |
+| `\tc`             | `convert`           | Toggle grid ↔ pipe, keeping cell text as is (anything else goes to `\tC`)  |
+| `\tC`             | `pandoc`            | Convert any table (pipe/simple/grid) to grid through pandoc, wrapping long cells (visual too) |
 | `<Tab>` / `<S-Tab>` | `next_cell` / `prev_cell` | Next/previous cell along each row's first line, row by row; next on the last cell adds a row |
 | `<CR>` / `<S-CR>` | `cell_down` / `cell_up`   | Same column, next/previous row (whole rows: use `j`/`k` inside a multi-line row); down on the last row adds a row |
 | `<A-o>`           | `new_row`           | New row below the current one                                               |
@@ -106,6 +113,19 @@ Other behaviour:
 - New and converted tables are wrapped in `<!-- prettier-ignore-start/end -->` so prettier
   doesn't reformat them.
 
+## Pipe tables
+
+Everything works on pipe tables too, except what needs a multi-line row or an optional header:
+`new_line`, `join_row`, `break_row` and `toggle_header` say so and point to `\tc`, which converts
+the table to a grid table. A pipe table's header row can't be deleted.
+
+Realigned pipe tables are formatted exactly like [prettier](https://prettier.io) formats them
+(alignment padding, minimum width 3, outer pipes), so prettier on save never fights with the
+plugin, and they don't get prettier-ignore markers. `\tc` adds the markers when converting to a
+grid table and removes them when converting back.
+
+Converting grid → pipe needs a header row (`\th`) and single-line rows (`\tj`).
+
 ## Configuration
 
 Defaults:
@@ -116,7 +136,8 @@ require("gridtable").setup({
     auto_align = true, -- per buffer: vim.b.gridtable_autoalign = false
     escape_pipes = true, -- per buffer: vim.b.gridtable_escape_pipes = false
     nowrap = true,
-    prettier_ignore = true,
+    new_table_format = "grid", -- "grid", "pipe", or "ask" (last choice offered first)
+    prettier_ignore = true, -- wrap new/converted grid tables in prettier-ignore markers
     pandoc = {
         "pandoc", "-f", "markdown",
         "-t", "markdown-pipe_tables-simple_tables-multiline_tables+grid_tables",
@@ -133,7 +154,7 @@ require("gridtable").setup({
 
 ## Limitations
 
-- A table must start and end with a `+---+` border line.
+- A grid table must start and end with a `+---+` border line.
 - Row and column spans are not supported.
 - A literal `|` in a cell must be written `\|`.
 

@@ -1,4 +1,5 @@
--- Creating tables: `new_table` from a header spec, `convert` via a pandoc round-trip.
+-- Creating and converting tables: `new_table` from a header spec, `convert` toggles grid <-> pipe,
+-- `pandoc` round-trips through pandoc (any table -> grid, wrapping long cells).
 local core = require("gridtable.core")
 local edit = require("gridtable.edit")
 
@@ -23,8 +24,10 @@ local function wrap_ignore(out, indent, top, bottom)
 end
 
 --- Build a new table at the cursor from `spec`:
---- "A, B, C" -> table with that header row; "3" -> headerless table with 3 columns.
-function M.insert_table(spec)
+--- "A, B, C" -> table with that header row; "3" -> 3 columns, headerless for a grid table and
+--- with an empty header row for a pipe table (which always has one).
+--- `format` is "grid" (default) or "pipe".
+function M.insert_table(spec, format)
     spec = vim.trim(spec or "")
     if spec == "" then
         return
@@ -41,25 +44,33 @@ function M.insert_table(spec)
         end, vim.split(spec, ",", { plain = true }))
         n = #headers
     end
+    local pipe = format == "pipe"
     local indent = api.nvim_get_current_line():match("^(%s*)")
-    local t = { indent = indent, ncols = n, rows = { core.new_border(n, "-") } }
-    if headers then
-        t.rows[#t.rows + 1] = { kind = "row", cells = headers }
-        t.rows[#t.rows + 1] = core.new_border(n, "=")
+    local t = { format = pipe and "pipe" or "grid", indent = indent, ncols = n, rows = { core.new_border(n, "-") } }
+    if headers or pipe then
+        t.rows[#t.rows + 1] = headers and { kind = "row", cells = headers } or core.new_row(n)
+        local sep = core.new_border(n, "=")
+        sep.sep = pipe or nil
+        t.rows[#t.rows + 1] = sep
     end
     local body = #t.rows + 1
     t.rows[#t.rows + 1] = core.new_row(n)
     t.rows[#t.rows + 1] = core.new_border(n, "-")
     core.compute_widths(t)
+    -- empty grid columns would be 1 wide; keep them at 3 until the first realign
     for c = 1, n do
         t.widths[c] = math.max(3, t.widths[c])
     end
-    local out = {}
+    local out, starts = {}, {}
     for i, r in ipairs(t.rows) do
-        out[i] = (core.render(t, r))
+        local l
+        l, starts[i] = core.render(t, r)
+        out[#out + 1] = l
     end
+    core.index_lines(t)
 
-    local ignore = config().prettier_ignore
+    -- pipe tables are formatted by prettier itself; grid tables must be hidden from it
+    local ignore = config().prettier_ignore and not pipe
     local top = wrap_ignore(out, indent, ignore, ignore)
     local lnum = api.nvim_win_get_cursor(0)[1]
     local first
@@ -71,14 +82,31 @@ function M.insert_table(spec)
         api.nvim_buf_set_lines(0, lnum, lnum, false, out)
         first = lnum + 1 + top
     end
-    -- min width 3 is only for the empty table; place the cursor without realigning
-    api.nvim_win_set_cursor(0, { first + body - 1, #indent + 2 })
+    api.nvim_win_set_cursor(0, { first + t.lnum[body] - 1, starts[body][1] })
     vim.cmd.startinsert()
 end
 
---- Prompt for headers (or a column count) and insert a new table.
+local last_format = "grid"
+
+--- Prompt for headers (or a column count) and insert a new table in the configured format
+--- (`new_table_format`: "grid", "pipe" or "ask").
 function M.new_table()
-    vim.ui.input({ prompt = "Columns (A, B, C — or a number for no header): " }, M.insert_table)
+    local function input(format)
+        vim.ui.input({ prompt = "Columns (A, B, C — or a number): " }, function(spec)
+            M.insert_table(spec, format)
+        end)
+    end
+    local format = config().new_table_format
+    if format ~= "ask" then
+        return input(format)
+    end
+    local choices = last_format == "pipe" and { "pipe", "grid" } or { "grid", "pipe" }
+    vim.ui.select(choices, { prompt = "Table format" }, function(choice)
+        if choice then
+            last_format = choice
+            input(choice)
+        end
+    end)
 end
 
 --- Is the nearest non-blank line from `from` (walking by `step`) a line containing `marker`?
@@ -150,7 +178,7 @@ end
 --- Convert the table under the cursor (pipe/simple/grid) to a grid table via pandoc.
 --- In visual mode, converts the selected lines. Pandoc may rewrite cell contents and wraps
 --- the table to the configured width, unlike `align` which only realigns.
-function M.convert()
+function M.pandoc()
     local mode = api.nvim_get_mode().mode
     local s, e
     if mode:match("^[vV\22]") then
@@ -183,6 +211,92 @@ function M.convert()
         end
     end
     M.convert_range(s, e)
+end
+
+--- Delete the prettier-ignore markers (and the blank lines up to them) right around lines
+--- s..e. Returns the table's new first line.
+local function remove_markers(s, e)
+    local function find(from, step, marker)
+        local i, n = from, api.nvim_buf_line_count(0)
+        while i >= 1 and i <= n do
+            local l = api.nvim_buf_get_lines(0, i - 1, i, false)[1]
+            if not l:match("^%s*$") then
+                return l:find(marker, 1, true) and i or nil
+            end
+            i = i + step
+        end
+    end
+    local bottom = find(e + 1, 1, "prettier-ignore-end")
+    local top = find(s - 1, -1, "prettier-ignore-start")
+    if bottom and top then
+        api.nvim_buf_set_lines(0, e, bottom, false, {})
+        api.nvim_buf_set_lines(0, top - 1, s - 1, false, {})
+        return top
+    end
+    return s
+end
+
+--- Add prettier-ignore markers around lines s..e unless they're there. Returns the new s.
+local function add_markers(s, e, indent)
+    if not has_marker(0, e + 1, 1, "prettier-ignore-end") then
+        api.nvim_buf_set_lines(0, e, e, false, { "", indent .. "<!-- prettier-ignore-end -->" })
+    end
+    if not has_marker(0, s - 1, -1, "prettier-ignore-start") then
+        api.nvim_buf_set_lines(0, s - 1, s - 1, false, { indent .. "<!-- prettier-ignore-start -->", "" })
+        return s + 2
+    end
+    return s
+end
+
+--- Toggle the table under the cursor between grid and pipe format, keeping cell text as is.
+--- Anything else (a simple table, or a visual selection) goes through pandoc instead.
+function M.convert()
+    if api.nvim_get_mode().mode:match("^[vV\22]") then
+        return M.pandoc()
+    end
+    local s, _, format = core.find_table(0, api.nvim_win_get_cursor(0)[1])
+    if not s then
+        return M.pandoc()
+    end
+    local to = format == "grid" and "pipe" or "grid"
+    local ctx = edit.run(function(ctx, pos)
+        local t = ctx.t
+        local borders, blocks = core.split_blocks(t)
+        if to == "pipe" then
+            if not core.has_header(borders) then
+                edit.notify("a pipe table needs a header row (add one with \\th)")
+                return false
+            end
+            for k, b in ipairs(blocks) do
+                if #b > 1 then
+                    edit.notify(("row %d spans %d lines; pipe table rows are single lines (\\tj joins)"):format(k, #b))
+                    return false
+                end
+            end
+            for _, r in ipairs(t.rows) do
+                if r.kind == "row" then
+                    r.cells = vim.tbl_map(vim.trim, r.cells)
+                end
+            end
+            borders[2].sep = true
+        else
+            borders[2].sep = nil
+        end
+        t.format = to
+        return { i = pos.i, c = pos.c, off = 0 }
+    end)
+    if not ctx then
+        return
+    end
+    local cur = api.nvim_win_get_cursor(0)
+    local rel = cur[1] - ctx.s
+    local first = ctx.s
+    if to == "pipe" then
+        first = remove_markers(ctx.s, ctx.e)
+    elseif config().prettier_ignore then
+        first = add_markers(ctx.s, ctx.e, ctx.t.indent)
+    end
+    api.nvim_win_set_cursor(0, { first + rel, cur[2] })
 end
 
 return M

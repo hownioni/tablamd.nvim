@@ -12,7 +12,9 @@ M.defaults = {
     nowrap = true,
     -- typing `|` inside a complete row inserts `\|` (per buffer: `b:gridtable_escape_pipes = v:false`)
     escape_pipes = true,
-    -- wrap new/converted tables in <!-- prettier-ignore-start/end -->
+    -- what \tn creates: "grid", "pipe", or "ask" (asks each time, last choice first)
+    new_table_format = "grid",
+    -- wrap new/converted grid tables in <!-- prettier-ignore-start/end -->
     prettier_ignore = true,
     pandoc = {
         "pandoc",
@@ -28,7 +30,8 @@ M.defaults = {
     keymaps = {
         new_table = "<localleader>tn",
         align = "<localleader>ta",
-        convert = "<localleader>tc",
+        convert = "<localleader>tc", -- toggle grid <-> pipe
+        pandoc = "<localleader>tC", -- convert any table to grid through pandoc, wrapping cells
         -- inside a table; elsewhere these keys do what they did before
         next_cell = "<Tab>", -- on the last cell: adds a row
         prev_cell = "<S-Tab>",
@@ -64,7 +67,8 @@ M.config = vim.deepcopy(M.defaults)
 M.actions = {
     new_table = { "convert", { "n" }, "new table" },
     align = { "edit", { "n" }, "align" },
-    convert = { "convert", { "n", "x" }, "convert/rewrap (pandoc)" },
+    convert = { "convert", { "n", "x" }, "toggle grid/pipe" },
+    pandoc = { "convert", { "n", "x" }, "convert to grid via pandoc (rewrap)" },
     next_cell = { "edit", { "n", "i" }, "next cell", nav = true, count = "repeat" },
     prev_cell = { "edit", { "n", "i" }, "previous cell", nav = true, count = "repeat" },
     cell_down = { "edit", { "n", "i" }, "cell below", nav = true, count = "repeat" },

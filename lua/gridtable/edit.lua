@@ -14,12 +14,12 @@ M.notify = notify
 
 --- Parse the table around lnum. Returns ctx, or nil plus an error for a malformed table.
 function M.load(buf, lnum)
-    local s, e = core.find_bounds(buf, lnum)
+    local s, e, format = core.find_table(buf, lnum)
     if not s then
         return nil
     end
     local lines = api.nvim_buf_get_lines(buf, s - 1, e, false)
-    local t, err = core.parse(lines, vim.bo[buf].tabstop)
+    local t, err = core.parse(lines, vim.bo[buf].tabstop, format)
     if not t then
         return nil, err
     end
@@ -48,8 +48,14 @@ end
 --- Put the cursor at target { i = row index, c = column, off = byte offset }. On a border line
 --- `col` (a raw column) wins over `c` (snap to the column's segment).
 function M.place(ctx, target)
-    local i = math.max(1, math.min(target.i, #ctx.t.rows))
-    local r, lnum = ctx.t.rows[i], ctx.s + i - 1
+    local t = ctx.t
+    local i = math.max(1, math.min(target.i, #t.rows))
+    -- an undrawn pipe-table border: use the line above it
+    while not t.lnum[i] and i > 1 do
+        i = i - 1
+    end
+    local r, l = t.rows[i], t.lnum[i] or 1
+    local lnum = ctx.s + l - 1
     if r.kind == "row" and target.c then
         local c = math.min(target.c, ctx.t.ncols)
         local col = ctx.starts[i][c] + math.min(target.off or 0, #r.cells[c])
@@ -57,7 +63,7 @@ function M.place(ctx, target)
     elseif target.c and not target.col then
         api.nvim_win_set_cursor(0, { lnum, ctx.starts[i][math.min(target.c, ctx.t.ncols)] })
     else
-        api.nvim_win_set_cursor(0, { lnum, math.max(0, math.min(target.col or 0, #ctx.lines[i] - 1)) })
+        api.nvim_win_set_cursor(0, { lnum, math.max(0, math.min(target.col or 0, #ctx.lines[l] - 1)) })
     end
 end
 
@@ -74,15 +80,25 @@ function M.run(fn, opts)
         if err then
             notify(err, vim.log.levels.WARN)
         elseif not opts.quiet then
-            notify("cursor is not inside a grid table")
+            notify("cursor is not inside a table")
         end
         return nil
     end
     local line = ctx.old[lnum - ctx.s + 1]
-    local c, off = core.cell_at(line, col)
-    local pos = { i = lnum - ctx.s + 1, c = c, off = off, col = col, border = core.is_border(line) }
-    if not pos.border and c > ctx.t.ncols then -- cursor was on/after the closing pipe
-        pos.c, pos.off = ctx.t.ncols, math.huge
+    local i = ctx.t.index[lnum - ctx.s + 1]
+    local border = ctx.t.rows[i].kind == "border"
+    local c, off
+    if ctx.t.format == "pipe" then
+        c, off = require("gridtable.pipe").cell_at(line, col)
+    else
+        c, off = core.cell_at(line, col)
+    end
+    if border then
+        off = 0
+    end
+    local pos = { i = i, c = c, off = off, col = col, border = border }
+    if c > ctx.t.ncols then -- cursor was on/after the closing pipe
+        pos.c, pos.off = ctx.t.ncols, border and 0 or math.huge
     end
     local target = pos
     if fn then
@@ -99,7 +115,16 @@ end
 
 function M.in_table()
     local lnum = api.nvim_win_get_cursor(0)[1]
-    return core.find_bounds(0, lnum) ~= nil
+    return core.find_table(0, lnum) ~= nil
+end
+
+--- For actions that need multi-line rows or an optional header: refuse on pipe tables.
+local function grid_only(ctx, what)
+    if ctx.t.format == "pipe" then
+        notify(what .. " needs a grid table (pipe table rows are single lines; \\tc converts)")
+        return false
+    end
+    return true
 end
 
 function M.align()
@@ -108,7 +133,8 @@ end
 
 --- Auto-align for InsertLeave: merged into the previous undo step, warns on a malformed table.
 function M.auto_align()
-    if vim.b.gridtable_autoalign == false or not core.is_table_line(api.nvim_get_current_line()) then
+    local line = api.nvim_get_current_line()
+    if vim.b.gridtable_autoalign == false or not (line:find("|", 1, true) or core.is_border(line)) then
         return
     end
     M.run(nil, { quiet = true, undojoin = true })
@@ -125,11 +151,16 @@ function M.escape_typed_pipe()
     if not core.is_row(line) or line:sub(col, col) == "\\" then
         return
     end
-    local s = core.find_bounds(0, lnum)
+    local s, _, format = core.find_table(0, lnum)
     if not s then
         return
     end
-    local ncols = core.border_ncols(api.nvim_buf_get_lines(0, s - 1, s, false)[1])
+    local ncols
+    if format == "pipe" then
+        ncols = #require("gridtable.pipe").split(api.nvim_buf_get_lines(0, s, s + 1, false)[1])
+    else
+        ncols = core.border_ncols(api.nvim_buf_get_lines(0, s - 1, s, false)[1])
+    end
     local _, seps = core.split_row(line)
     -- only between the first and last pipe; outside them it may be a new structural pipe
     if #seps >= ncols + 1 and col > seps[1] and col <= seps[#seps] then
@@ -242,7 +273,7 @@ end
 --- Continuation line inside the current row (e.g. another bullet in a cell).
 function M.new_line()
     M.run(function(ctx, pos)
-        if pos.border then
+        if pos.border or not grid_only(ctx, "a line inside a row") then
             return false
         end
         table.insert(ctx.t.rows, pos.i + 1, core.new_row(ctx.t.ncols))
@@ -339,6 +370,10 @@ function M.delete_row(count)
         local header = core.has_header(borders)
         -- deleting the header (k == 1) makes the table headerless, so any row may remain;
         -- otherwise the header stays and needs a body row under it
+        if k == 1 and ctx.t.format == "pipe" then
+            notify("a pipe table needs its header row")
+            return false
+        end
         local keep = (header and k > 1) and 2 or 1
         local n = math.min(count, #blocks - k + 1, #blocks - keep)
         if n < 1 then
@@ -351,7 +386,9 @@ function M.delete_row(count)
             for _, r in ipairs(blocks[b]) do
                 yank[#yank + 1] = (core.render(t, r))
             end
-            yank[#yank + 1] = (core.render(t, core.new_border(t.ncols, "-")))
+            if t.format ~= "pipe" then
+                yank[#yank + 1] = (core.render(t, core.new_border(t.ncols, "-")))
+            end
         end
         vim.fn.setreg(vim.v.register, yank, "l")
 
@@ -437,6 +474,9 @@ end
 --- normal row. Alignment moves between the separator and the top border with it.
 function M.toggle_header()
     M.run(function(ctx)
+        if not grid_only(ctx, "toggling the header") then
+            return false
+        end
         local borders, blocks = core.split_blocks(ctx.t)
         if #blocks < 2 then
             notify("a header needs at least one row below it")
@@ -562,6 +602,9 @@ end
 --- Join the current row's lines into one line (each column's text joined with spaces).
 function M.join_row()
     M.run(function(ctx, pos)
+        if not grid_only(ctx, "joining a row") then
+            return false
+        end
         local t = ctx.t
         local borders, blocks = core.split_blocks(t)
         local k = core.block_of(t, pos.i)
@@ -584,6 +627,9 @@ end
 --- Split the current row: each of its lines becomes a row of its own.
 function M.break_row()
     M.run(function(ctx, pos)
+        if not grid_only(ctx, "breaking up a row") then
+            return false
+        end
         local t = ctx.t
         local borders, blocks = core.split_blocks(t)
         local k, o = core.block_of(t, pos.i)

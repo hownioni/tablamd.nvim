@@ -10,7 +10,7 @@ vim.api.nvim_create_user_command("GridTable", function(opts)
     if not gt.actions[name] then
         return vim.notify("GridTable: unknown action " .. tostring(name), vim.log.levels.ERROR)
     end
-    if name == "convert" and opts.range > 0 then
+    if (name == "convert" or name == "pandoc") and opts.range > 0 then
         return require("gridtable.convert").convert_range(opts.line1, opts.line2)
     end
     gt.call(name, opts.fargs[2] or 1) -- optional count: `:GridTable delete_row 3`

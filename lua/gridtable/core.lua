@@ -1,7 +1,9 @@
--- Pure parsing/rendering of Pandoc grid tables. No cursor or keymap logic here.
--- A parsed table `t` is { indent, ncols, rows, widths } where each row is either
---   { kind = "border", fill = "-"|"=", aligns = { {left=, right=}, ... } }
+-- Pure parsing/rendering of grid tables (and, via pipe.lua, pipe tables). No cursor or keymap
+-- logic here. A parsed table `t` is { format, indent, ncols, rows, widths } where each row is
+--   { kind = "border", fill = "-"|"=", aligns = { {left=, right=}, ... }, sep = pipe delimiter? }
 --   { kind = "row", cells = { "text", ... } }
+-- After render_all, t.lnum maps a row index to its line in the table (nil for undrawn pipe
+-- borders) and t.index maps a line back to its row index.
 local M = {}
 
 local api = vim.api
@@ -78,7 +80,7 @@ end
 
 --- Expand tabs to spaces (tab stops counted from the start of the cell). A tab's display
 --- width depends on its screen column, so left in place it would break the alignment.
-local function expand_tabs(s, ts)
+function M.expand_tabs(s, ts)
     if not s:find("\t", 1, true) then
         return s
     end
@@ -98,7 +100,7 @@ end
 --- Strip exactly one leading pad space and trailing whitespace, keeping inner indentation.
 function M.norm_cell(c, ts)
     c = c:gsub("^ ", "")
-    return (expand_tabs(c, ts or 8):gsub("%s+$", ""))
+    return (M.expand_tabs(c, ts or 8):gsub("%s+$", ""))
 end
 
 --- Number of columns of a border line.
@@ -155,7 +157,7 @@ function M.new_row(ncols)
     return { kind = "row", cells = cells }
 end
 
-function M.parse(tlines, ts)
+local function parse_grid(tlines, ts)
     local indent = tlines[1]:match("^(%s*)")
     local ncols = M.border_ncols(tlines[1])
     local rows = {}
@@ -182,10 +184,51 @@ function M.parse(tlines, ts)
             rows[i] = { kind = "row", cells = cells }
         end
     end
-    return { indent = indent, ncols = ncols, rows = rows }
+    return { format = "grid", indent = indent, ncols = ncols, rows = rows }
+end
+
+--- Parse table lines of the given format ("grid" or "pipe").
+function M.parse(tlines, ts, format)
+    local t, err
+    if format == "pipe" then
+        t, err = require("gridtable.pipe").parse(tlines, ts)
+    else
+        t, err = parse_grid(tlines, ts)
+    end
+    if t then
+        M.index_lines(t)
+    end
+    return t, err
+end
+
+--- Bounds and format of the table around lnum: a grid table, else a pipe table.
+function M.find_table(buf, lnum)
+    local s, e = M.find_bounds(buf, lnum)
+    if s then
+        return s, e, "grid"
+    end
+    s, e = require("gridtable.pipe").find_bounds(buf, lnum)
+    if s then
+        return s, e, "pipe"
+    end
+end
+
+--- Set t.lnum (row index -> line in the table) and t.index (line -> row index).
+function M.index_lines(t)
+    local lnum, index, n = {}, {}, 0
+    for i, r in ipairs(t.rows) do
+        if t.format ~= "pipe" or r.kind == "row" or r.sep then
+            n = n + 1
+            lnum[i], index[n] = n, i
+        end
+    end
+    t.lnum, t.index = lnum, index
 end
 
 function M.compute_widths(t)
+    if t.format == "pipe" then
+        return require("gridtable.pipe").compute_widths(t)
+    end
     local widths = {}
     for c = 1, t.ncols do
         widths[c] = 1
@@ -203,6 +246,9 @@ end
 --- Render one row; returns the line and 0-based byte offsets where each cell's content starts
 --- (for a border: where each segment starts).
 function M.render(t, r)
+    if t.format == "pipe" then
+        return require("gridtable.pipe").render(t, r)
+    end
     if r.kind == "border" then
         local segs = {}
         for c, w in ipairs(t.widths) do
@@ -241,8 +287,13 @@ function M.render_all(t)
     M.compute_widths(t)
     local lines, starts = {}, {}
     for i, r in ipairs(t.rows) do
-        lines[i], starts[i] = M.render(t, r)
+        local l
+        l, starts[i] = M.render(t, r)
+        if l then
+            lines[#lines + 1] = l
+        end
     end
+    M.index_lines(t)
     return lines, starts
 end
 
@@ -327,7 +378,8 @@ end
 
 --- Does the table have a header (first block followed by a `=` border)?
 function M.has_header(borders)
-    return borders[2] ~= nil and borders[2].fill == "=" and #borders > 2
+    -- a pipe table always has a header, even with no body rows
+    return borders[2] ~= nil and (borders[2].sep or (borders[2].fill == "=" and #borders > 2))
 end
 
 return M
