@@ -47,6 +47,8 @@ M.defaults = {
         toggle_header = "<localleader>th",
         sort = "<localleader>ts",
         sort_desc = "<localleader>tS",
+        join_row = "<localleader>tj",
+        break_row = "<localleader>tb",
         inner_cell = "ic",
         outer_cell = "ac",
     },
@@ -78,6 +80,8 @@ M.actions = {
     toggle_header = { "edit", { "n" }, "toggle header row" },
     sort = { "edit", { "n" }, "sort rows by column" },
     sort_desc = { "edit", { "n" }, "sort rows by column (descending)" },
+    join_row = { "edit", { "n" }, "join row lines" },
+    break_row = { "edit", { "n" }, "break row into rows" },
     inner_cell = { "textobj", { "x", "o" }, "inner cell" },
     outer_cell = { "textobj", { "x", "o" }, "around cell" },
 }

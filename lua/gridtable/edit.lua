@@ -506,4 +506,53 @@ function M.sort_desc()
     sort_rows(true)
 end
 
+-- Joining / splitting multi-line rows -------------------------------------------
+
+--- Join the current row's lines into one line (each column's text joined with spaces).
+function M.join_row()
+    M.run(function(ctx, pos)
+        local t = ctx.t
+        local borders, blocks = core.split_blocks(t)
+        local k = core.block_of(t, pos.i)
+        local row = core.new_row(t.ncols)
+        for c = 1, t.ncols do
+            local parts = {}
+            for _, r in ipairs(blocks[k]) do
+                if r.cells[c] ~= "" then
+                    parts[#parts + 1] = vim.trim(r.cells[c])
+                end
+            end
+            row.cells[c] = table.concat(parts, " ")
+        end
+        blocks[k] = { row }
+        core.join_blocks(t, borders, blocks)
+        return { i = core.row_index(blocks, k, 1), c = pos.c, off = 0 }
+    end)
+end
+
+--- Split the current row: each of its lines becomes a row of its own.
+function M.break_row()
+    M.run(function(ctx, pos)
+        local t = ctx.t
+        local borders, blocks = core.split_blocks(t)
+        local k, o = core.block_of(t, pos.i)
+        if #blocks[k] < 2 then
+            return
+        end
+        if k == 1 and core.has_header(borders) then
+            notify("can't split the header row")
+            return false
+        end
+        local lines = table.remove(blocks, k)
+        for n, r in ipairs(lines) do
+            table.insert(blocks, k + n - 1, { r })
+            if n > 1 then
+                table.insert(borders, k + n - 1, core.new_border(t.ncols, "-"))
+            end
+        end
+        core.join_blocks(t, borders, blocks)
+        return { i = core.row_index(blocks, k + math.max(o, 1) - 1, 1), c = pos.c, off = pos.off }
+    end)
+end
+
 return M

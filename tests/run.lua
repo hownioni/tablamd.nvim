@@ -388,6 +388,41 @@ test("sort compares numbers numerically and is stable", function()
     eq(body_col(2), { "V", "x", "10", "9", "2", "2" })
 end)
 
+local MULTI = {
+    "+--------+---+",
+    "| uno    | 1 |",
+    "| dos    |   |",
+    "|   tres | 3 |",
+    "+--------+---+",
+}
+
+test("join_row merges a multi-line row", function()
+    buf(MULTI, { 3, 2 })
+    gt.call("join_row")
+    eq(lines(), { "+--------------+-----+", "| uno dos tres | 1 3 |", "+--------------+-----+" })
+end)
+
+test("break_row breaks a row into one row per line", function()
+    buf(MULTI, { 3, 2 })
+    gt.call("break_row")
+    eq(lines(), {
+        "+--------+---+",
+        "| uno    | 1 |",
+        "+--------+---+",
+        "| dos    |   |",
+        "+--------+---+",
+        "|   tres | 3 |",
+        "+--------+---+",
+    })
+    eq(cell_text(), "dos")
+end)
+
+test("break_row refuses the header", function()
+    buf({ "+---+", "| a |", "| b |", "+===+", "| c |", "+---+" }, { 2, 2 })
+    gt.call("break_row")
+    eq(#lines(), 6)
+end)
+
 test("tables need a border at both ends", function()
     buf({ "| a | b |", "+---+---+" }, { 1, 2 })
     eq(gt.in_table(), false)
