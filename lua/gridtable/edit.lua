@@ -382,4 +382,33 @@ function M.cycle_align()
     end)
 end
 
+--- Make the first row the header (`=` separator below it), or turn the header into a
+--- normal row. Alignment moves between the separator and the top border with it.
+function M.toggle_header()
+    M.run(function(ctx)
+        local borders, blocks = core.split_blocks(ctx.t)
+        if #blocks < 2 then
+            notify("a header needs at least one row below it")
+            return false
+        end
+        local top, sep = borders[1], borders[2]
+        local from, to = top, sep
+        if sep.fill == "=" then
+            sep.fill, from, to = "-", sep, top
+        else
+            sep.fill = "="
+        end
+        local has = function(b)
+            for _, a in ipairs(b.aligns) do
+                if a.left or a.right then
+                    return true
+                end
+            end
+        end
+        if has(from) and not has(to) then
+            from.aligns, to.aligns = to.aligns, from.aligns
+        end
+    end)
+end
+
 return M

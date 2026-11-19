@@ -44,6 +44,7 @@ M.defaults = {
         move_row_down = "<A-J>",
         move_row_up = "<A-K>",
         cycle_align = "<localleader>tA",
+        toggle_header = "<localleader>th",
         inner_cell = "ic",
         outer_cell = "ac",
     },
@@ -72,6 +73,7 @@ M.actions = {
     move_row_down = { "edit", { "n", "i" }, "move row down", nav = true },
     move_row_up = { "edit", { "n", "i" }, "move row up", nav = true },
     cycle_align = { "edit", { "n" }, "cycle column alignment" },
+    toggle_header = { "edit", { "n" }, "toggle header row" },
     inner_cell = { "textobj", { "x", "o" }, "inner cell" },
     outer_cell = { "textobj", { "x", "o" }, "around cell" },
 }
