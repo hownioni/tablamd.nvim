@@ -353,4 +353,33 @@ function M.move_row_up()
     move_row(-1)
 end
 
+-- Alignment -------------------------------------------------------------------
+
+local ALIGN_CYCLE = { default = "left", left = "center", center = "right", right = "default" }
+local ALIGN_FLAGS = {
+    default = {},
+    left = { left = true },
+    center = { left = true, right = true },
+    right = { right = true },
+}
+
+local function align_name(a)
+    if a.left and a.right then
+        return "center"
+    end
+    return a.left and "left" or a.right and "right" or "default"
+end
+
+--- Cycle the column's alignment: default -> left -> center -> right. Pandoc reads it from
+--- the header separator, or from the top border in a headerless table.
+function M.cycle_align()
+    M.run(function(ctx, pos)
+        local borders = core.split_blocks(ctx.t)
+        local b = core.has_header(borders) and borders[2] or borders[1]
+        local name = ALIGN_CYCLE[align_name(b.aligns[pos.c])]
+        b.aligns[pos.c] = vim.deepcopy(ALIGN_FLAGS[name])
+        api.nvim_echo({ { ("column %d: %s"):format(pos.c, name) } }, false, {})
+    end)
+end
+
 return M

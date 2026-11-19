@@ -43,6 +43,7 @@ M.defaults = {
         delete_row = "<localleader>tdr",
         move_row_down = "<A-J>",
         move_row_up = "<A-K>",
+        cycle_align = "<localleader>tA",
     },
 }
 
@@ -68,6 +69,7 @@ M.actions = {
     delete_row = { "edit", { "n" }, "delete row" },
     move_row_down = { "edit", { "n", "i" }, "move row down", nav = true },
     move_row_up = { "edit", { "n", "i" }, "move row up", nav = true },
+    cycle_align = { "edit", { "n" }, "cycle column alignment" },
 }
 
 function M.call(name, ...)

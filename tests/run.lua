@@ -289,6 +289,29 @@ test("move_row_down / up swap whole rows, not across the header", function()
     eq(lines(), ROWS)
 end)
 
+test("cycle_align cycles the header separator", function()
+    buf(ALIGNED, { 4, 2 })
+    local seen = {}
+    for _ = 1, 4 do
+        gt.call("cycle_align")
+        seen[#seen + 1] = lines()[3]
+    end
+    eq(seen, {
+        "+:===========+=====+",
+        "+:==========:+=====+",
+        "+===========:+=====+",
+        "+============+=====+",
+    })
+    eq(cell_text(), "Ana")
+end)
+
+test("cycle_align uses the top border in a headerless table", function()
+    buf({ "+---+---+", "| a | b |", "+---+---+" }, { 2, 6 })
+    gt.call("cycle_align")
+    eq(lines()[1], "+---+:--+")
+    eq(lines()[3], "+---+---+")
+end)
+
 test("tables need a border at both ends", function()
     buf({ "| a | b |", "+---+---+" }, { 1, 2 })
     eq(gt.in_table(), false)
