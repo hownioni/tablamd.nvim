@@ -136,7 +136,7 @@ require("tablamd").setup({
     auto_align = true, -- per buffer: vim.b.tablamd_autoalign = false
     escape_pipes = true, -- per buffer: vim.b.tablamd_escape_pipes = false
     nowrap = true,
-    new_table_format = "grid", -- "grid", "pipe", or "ask" (last choice offered first)
+    new_table_format = "pipe", -- "grid", "pipe", or "ask" (last choice offered first)
     prettier_ignore = true, -- wrap new/converted grid tables in prettier-ignore markers
     pandoc = {
         "pandoc", "-f", "markdown",

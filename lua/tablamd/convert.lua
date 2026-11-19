@@ -86,7 +86,7 @@ function M.insert_table(spec, format)
     vim.cmd.startinsert()
 end
 
-local last_format = "grid"
+local last_format = "pipe"
 
 --- Prompt for headers (or a column count) and insert a new table in the configured format
 --- (`new_table_format`: "grid", "pipe" or "ask").

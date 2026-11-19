@@ -748,6 +748,18 @@ test("insert_table in pipe format", function()
     eq(lines()[1], "|     |     |")
 end)
 
+test("new_table makes a pipe table by default", function()
+    local inp = vim.ui.input
+    vim.ui.input = function(_, cb)
+        cb("A, B")
+    end
+    buf({ "" }, { 1, 0 })
+    gt.call("new_table")
+    vim.cmd.stopinsert()
+    vim.ui.input = inp
+    eq(lines(), { "| A   | B   |", "| --- | --- |", "|     |     |" })
+end)
+
 test('new_table_format = "ask" offers the last choice first', function()
     local offered = {}
     local sel, inp = vim.ui.select, vim.ui.input
@@ -766,9 +778,9 @@ test('new_table_format = "ask" offers the last choice first', function()
     buf({ "" }, { 1, 0 })
     gt.call("new_table")
     vim.cmd.stopinsert()
-    gt.config.new_table_format = "grid"
+    gt.config.new_table_format = gt.defaults.new_table_format
     vim.ui.select, vim.ui.input = sel, inp
-    eq(offered, { "grid", "pipe" })
+    eq(offered, { "pipe", "pipe" })
 end)
 
 test("try() runs an action only inside a table", function()

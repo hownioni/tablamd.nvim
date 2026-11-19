@@ -12,8 +12,8 @@ M.defaults = {
     nowrap = true,
     -- typing `|` inside a complete row inserts `\|` (per buffer: `b:tablamd_escape_pipes = v:false`)
     escape_pipes = true,
-    -- what \tn creates: "grid", "pipe", or "ask" (asks each time, last choice first)
-    new_table_format = "grid",
+    -- what \tn creates: "pipe", "grid", or "ask" (asks each time, last choice first)
+    new_table_format = "pipe",
     -- wrap new/converted grid tables in <!-- prettier-ignore-start/end -->
     prettier_ignore = true,
     pandoc = {
