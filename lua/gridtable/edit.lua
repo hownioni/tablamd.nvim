@@ -183,11 +183,17 @@ function M.prev_cell()
     end)
 end
 
+--- Same column, next/previous content line. Going down from the last row adds a row.
 local function vertical(step)
     M.run(function(ctx, pos)
         local target = next_row(ctx.t, pos.i, step)
         if target then
             return { i = target, c = pos.c, off = 0 }
+        end
+        if step > 0 then
+            local new = add_block_after(ctx, core.block_of(ctx.t, pos.i))
+            new.c = pos.c
+            return new
         end
     end)
 end

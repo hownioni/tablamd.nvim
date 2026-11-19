@@ -40,12 +40,12 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 | `\tn`             | `new_table`         | Ask for headers (`A, B, C`) or a column count (`3`) and insert a table      |
 | `\ta`             | `align`             | Realign the table (also done automatically on `InsertLeave`)                |
 | `\tc`             | `convert`           | Convert a pipe/simple/grid table to a grid table with pandoc (visual too)   |
-| `<A-l>` / `<A-h>` | `next_cell` / `prev_cell` | Next/previous cell; next on the last cell adds a row                  |
+| `<Tab>` / `<S-Tab>` | `next_cell` / `prev_cell` | Next/previous cell; next on the last cell adds a row                |
+| `<CR>` / `<S-CR>` | `cell_down` / `cell_up`   | Cell below/above, skipping borders; down on the last row adds a row   |
 | `<A-o>`           | `new_row`           | New row below the current one                                               |
 | `<A-CR>`          | `new_line`          | New line inside the current row (e.g. another bullet in a cell)             |
-| `<A-L>` / `<A-H>` | `move_col_right` / `move_col_left` | Move the column                                              |
-| `<A-J>` / `<A-K>` | `cell_down` / `cell_up`   | Same column, next/previous line (skips border lines)                  |
-| `<A-j>` / `<A-k>` | `move_row_down` / `move_row_up`    | Move the row, whole (takes a count; never across the header) |
+| `<A-h>` / `<A-l>` | `move_col_left` / `move_col_right` | Move the column                                              |
+| `<A-j>` / `<A-k>` | `move_row_down` / `move_row_up`    | Move the whole row (takes a count; never across the header)  |
 | `\tic` / `\tiC`   | `insert_col` / `insert_col_before` | Insert a column right/left of the cursor                     |
 | `\tdc`            | `delete_col`        | Delete the column                                                           |
 | `\tdr`            | `delete_row`        | Delete the row and yank it (`p` on a border line pastes it back)            |
@@ -56,10 +56,40 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 | `\tb`             | `break_row`         | Break a multi-line row into one row per line                                |
 | `ic` / `ac`       | `inner_cell` / `outer_cell` | Text objects: cell content / everything between the pipes           |
 
-`\` is `<localleader>`. The `<A-…>` keys are only active inside a table. Elsewhere they run
-whatever global mapping the key had. `<A-j>`/`<A-k>` are meant as the table-aware version of a
-move-line mapping: on a table line, moving a single line would break the table, so they move the
-whole row instead.
+`\` is `<localleader>`. The navigation keys work in normal and insert mode, and only inside a
+table. Elsewhere they do exactly what they did before: the key's own mapping, looked up when you
+press it (so plugins that map keys late, like nvim-autopairs, still work), or Vim's built-in
+behaviour. While a snippet is active they always go to the snippet.
+
+The Alt keys follow one rule: `<A-hjkl>` move things in that direction. In a table, moving a single
+line would break it, so `<A-j>`/`<A-k>` work as a table-aware version of a move-line mapping.
+
+### blink.cmp
+
+blink.cmp maps `<Tab>`/`<S-Tab>` in insert mode in every buffer, replacing the plugin's mapping.
+Hook the table into blink's own chain instead:
+
+```lua
+keymap = {
+    preset = "default",
+    ["<Tab>"] = {
+        "snippet_forward",
+        function()
+            return package.loaded.gridtable and require("gridtable").try("next_cell")
+        end,
+        "fallback",
+    },
+    ["<S-Tab>"] = {
+        "snippet_backward",
+        function()
+            return package.loaded.gridtable and require("gridtable").try("prev_cell")
+        end,
+        "fallback",
+    },
+},
+```
+
+`try(action)` runs the action and returns `true` only when the cursor is in a table.
 
 Every action is also available as `:GridTable {action}`, e.g. `:GridTable sort` or
 `:'<,'>GridTable convert`.

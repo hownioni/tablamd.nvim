@@ -29,22 +29,23 @@ M.defaults = {
         new_table = "<localleader>tn",
         align = "<localleader>ta",
         convert = "<localleader>tc",
-        next_cell = "<A-l>",
-        prev_cell = "<A-h>",
-        -- same column, next/previous content line (skips border lines)
-        cell_down = "<A-J>",
-        cell_up = "<A-K>",
+        -- inside a table; elsewhere these keys do what they did before
+        next_cell = "<Tab>", -- on the last cell: adds a row
+        prev_cell = "<S-Tab>",
+        cell_down = "<CR>", -- same column, skipping borders; on the last row: adds a row
+        cell_up = "<S-CR>",
         new_row = "<A-o>",
-        new_line = "<A-CR>",
+        new_line = "<A-CR>", -- continuation line inside the current row
+        -- move things: <A-hjkl> = column left, row down, row up, column right.
+        -- <A-j>/<A-k> are the table-aware version of a move-line mapping.
+        move_col_left = "<A-h>",
+        move_row_down = "<A-j>",
+        move_row_up = "<A-k>",
+        move_col_right = "<A-l>",
         insert_col = "<localleader>tic",
         insert_col_before = "<localleader>tiC",
         delete_col = "<localleader>tdc",
-        move_col_left = "<A-H>",
-        move_col_right = "<A-L>",
         delete_row = "<localleader>tdr",
-        -- table-aware version of a move-line mapping: moves the whole row, never past a border
-        move_row_down = "<A-j>",
-        move_row_up = "<A-k>",
         cycle_align = "<localleader>tA",
         toggle_header = "<localleader>th",
         sort = "<localleader>ts",
@@ -59,7 +60,7 @@ M.defaults = {
 M.config = vim.deepcopy(M.defaults)
 
 --- name -> { module, modes, desc, nav = bool }. `nav` maps are only active inside a table
---- and otherwise fall back to the key's global mapping (e.g. move-line on <A-j>).
+--- (and no snippet is active); otherwise the key does what it would without the plugin.
 M.actions = {
     new_table = { "convert", { "n" }, "new table" },
     align = { "edit", { "n" }, "align" },
@@ -97,30 +98,70 @@ function M.in_table()
     return require("gridtable.edit").in_table()
 end
 
--- global mappings shadowed by nav keys, called back outside a table
-local fallbacks = {}
-
-function M._fallback(id)
-    fallbacks[id]()
+--- For completion plugins that own <Tab> in insert mode (e.g. blink.cmp): run a nav action
+--- if the cursor is in a table of an attached buffer. Returns true when it handled the key.
+---   ["<Tab>"] = { "snippet_forward", function() return require("gridtable").try("next_cell") end, "fallback" }
+function M.try(name)
+    if not vim.b.gridtable_attached or not M.in_table() then
+        return false
+    end
+    -- the caller may be inside an expr mapping, where the buffer can't be changed
+    vim.schedule(function()
+        M.call(name)
+    end)
+    return true
 end
 
---- A function returning the keys that run `orig` (a maparg() dict) from an expr mapping.
-local function fallback_keys(orig)
-    if orig.callback and orig.expr == 1 then
-        return orig.callback
-    elseif orig.callback then
-        fallbacks[#fallbacks + 1] = orig.callback
-        local keys = ("<Cmd>lua require('gridtable')._fallback(%d)<CR>"):format(#fallbacks)
-        return function()
-            return keys
+-- non-expr Lua callbacks of shadowed global mappings, run through <Cmd>
+local callbacks = {}
+
+function M._fallback(id)
+    callbacks[id]()
+end
+
+--- The global (non-buffer) mapping of `lhs`. Looked up when the key is pressed, not when
+--- attaching: plugins like nvim-autopairs only map their keys on the first InsertEnter.
+local function global_map(mode, lhs)
+    local want = vim.keycode(lhs)
+    for _, m in ipairs(api.nvim_get_keymap(mode)) do
+        if vim.keycode(m.lhs) == want then
+            return m
         end
     end
-    return function()
-        if orig.expr == 1 and orig.rhs then
-            return api.nvim_eval(orig.rhs)
-        end
-        return orig.rhs or ""
+end
+
+--- Keys (already encoded) that do whatever `lhs` would do without our buffer mapping.
+--- Encoding follows the original mapping: a Vimscript <expr> or a Lua expr with
+--- replace_keycodes = false returns raw keys (nvim-autopairs does), which must not be
+--- encoded twice.
+local function fallback_keys(mode, lhs)
+    local m = global_map(mode, lhs)
+    if not m then
+        return vim.keycode(lhs) -- built-in behaviour (our mapping is noremap)
     end
+    if m.callback then
+        if m.expr == 1 then
+            local keys = m.callback() or ""
+            return m.replace_keycodes == 1 and vim.keycode(keys) or keys
+        end
+        local id = tostring(m.callback)
+        callbacks[id] = m.callback
+        return vim.keycode(("<Cmd>lua require('gridtable')._fallback(%q)<CR>"):format(id))
+    end
+    if m.expr == 1 then
+        local keys = api.nvim_eval(m.rhs)
+        return m.replace_keycodes == 1 and vim.keycode(keys) or keys
+    end
+    return vim.keycode(m.rhs or lhs)
+end
+
+--- While a snippet is being filled in, <Tab> & co. belong to the snippet engine.
+local function snippet_active()
+    if vim.snippet and vim.snippet.active() then
+        return true
+    end
+    local ms = rawget(_G, "MiniSnippets")
+    return ms ~= nil and ms.session.get() ~= nil
 end
 
 local function map_action(buf, name, lhs)
@@ -128,13 +169,12 @@ local function map_action(buf, name, lhs)
     local desc = "grid table: " .. a[3]
     for _, mode in ipairs(a[2]) do
         if a.nav then
-            local fallback = fallback_keys(vim.fn.maparg(lhs, mode, false, true))
             vim.keymap.set(mode, lhs, function()
-                if M.in_table() then
-                    return ("<Cmd>lua require('gridtable').call(%q)<CR>"):format(name)
+                if M.in_table() and not snippet_active() then
+                    return vim.keycode(("<Cmd>lua require('gridtable').call(%q)<CR>"):format(name))
                 end
-                return fallback()
-            end, { buffer = buf, expr = true, silent = true, desc = desc })
+                return fallback_keys(mode, lhs)
+            end, { buffer = buf, expr = true, replace_keycodes = false, silent = true, desc = desc })
         else
             vim.keymap.set(mode, lhs, function()
                 M.call(name)
