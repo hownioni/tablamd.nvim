@@ -1,4 +1,4 @@
-# gridtable.nvim
+# tablamd.nvim
 
 Edit Markdown tables from Neovim: [Pandoc grid tables](https://pandoc.org/MANUAL.html#extension-grid_tables)
 and ordinary pipe tables. Realign as you type, move between cells, add, delete, move and sort rows
@@ -33,7 +33,7 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 
 ```lua
 {
-    "hownioni/gridtable.nvim",
+    "hownioni/tablamd.nvim",
     ft = "markdown",
     opts = {},
 }
@@ -82,14 +82,14 @@ keymap = {
     ["<Tab>"] = {
         "snippet_forward",
         function()
-            return package.loaded.gridtable and require("gridtable").try("next_cell")
+            return package.loaded.tablamd and require("tablamd").try("next_cell")
         end,
         "fallback",
     },
     ["<S-Tab>"] = {
         "snippet_backward",
         function()
-            return package.loaded.gridtable and require("gridtable").try("prev_cell")
+            return package.loaded.tablamd and require("tablamd").try("prev_cell")
         end,
         "fallback",
     },
@@ -102,8 +102,8 @@ Counts work like Vim's: `3<Tab>`, `2<CR>`, `3<A-o>` and `2\tic` repeat, `5\tdr` 
 yanks) five rows as one change, `2\tdc` deletes two columns and `3<A-j>`/`2<A-l>` move a row or
 column that many places. Deleting is clamped so the table keeps one body row and one column.
 
-Every action is also available as `:GridTable {action}`, e.g. `:GridTable sort`,
-`:GridTable delete_row 3` (with a count) or `:'<,'>GridTable convert`.
+Every action is also available as `:TablaMd {action}`, e.g. `:TablaMd sort`,
+`:TablaMd delete_row 3` (with a count) or `:'<,'>TablaMd convert`.
 
 Other behaviour:
 
@@ -131,10 +131,10 @@ Converting grid → pipe needs a header row (`\th`) and single-line rows (`\tj`)
 Defaults:
 
 ```lua
-require("gridtable").setup({
+require("tablamd").setup({
     filetypes = { "markdown" },
-    auto_align = true, -- per buffer: vim.b.gridtable_autoalign = false
-    escape_pipes = true, -- per buffer: vim.b.gridtable_escape_pipes = false
+    auto_align = true, -- per buffer: vim.b.tablamd_autoalign = false
+    escape_pipes = true, -- per buffer: vim.b.tablamd_escape_pipes = false
     nowrap = true,
     new_table_format = "grid", -- "grid", "pipe", or "ask" (last choice offered first)
     prettier_ignore = true, -- wrap new/converted grid tables in prettier-ignore markers

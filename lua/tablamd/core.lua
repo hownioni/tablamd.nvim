@@ -191,7 +191,7 @@ end
 function M.parse(tlines, ts, format)
     local t, err
     if format == "pipe" then
-        t, err = require("gridtable.pipe").parse(tlines, ts)
+        t, err = require("tablamd.pipe").parse(tlines, ts)
     else
         t, err = parse_grid(tlines, ts)
     end
@@ -207,7 +207,7 @@ function M.find_table(buf, lnum)
     if s then
         return s, e, "grid"
     end
-    s, e = require("gridtable.pipe").find_bounds(buf, lnum)
+    s, e = require("tablamd.pipe").find_bounds(buf, lnum)
     if s then
         return s, e, "pipe"
     end
@@ -227,7 +227,7 @@ end
 
 function M.compute_widths(t)
     if t.format == "pipe" then
-        return require("gridtable.pipe").compute_widths(t)
+        return require("tablamd.pipe").compute_widths(t)
     end
     local widths = {}
     for c = 1, t.ncols do
@@ -247,7 +247,7 @@ end
 --- (for a border: where each segment starts).
 function M.render(t, r)
     if t.format == "pipe" then
-        return require("gridtable.pipe").render(t, r)
+        return require("tablamd.pipe").render(t, r)
     end
     if r.kind == "border" then
         local segs = {}

@@ -5,8 +5,8 @@ vim.o.swapfile = false
 vim.o.undolevels = 1000
 vim.cmd("filetype on")
 
-vim.cmd("runtime plugin/gridtable.lua") -- -u NONE skips plugin/
-local gt = require("gridtable")
+vim.cmd("runtime plugin/tablamd.lua") -- -u NONE skips plugin/
+local gt = require("tablamd")
 gt.setup({ which_key = false })
 
 local api = vim.api
@@ -141,9 +141,9 @@ test("auto-align on InsertLeave, undone with a single u", function()
     eq(lines(), ALIGNED)
 end)
 
-test("auto-align honours b:gridtable_autoalign = false", function()
+test("auto-align honours b:tablamd_autoalign = false", function()
     buf(ALIGNED, { 4, 2 })
-    vim.b.gridtable_autoalign = false
+    vim.b.tablamd_autoalign = false
     keys("ea Lucía Fernández<Esc>")
     eq(lines()[1], ALIGNED[1])
 end)
@@ -601,9 +601,9 @@ test("counts: 2<Tab>, 2<CR>, 2<A-o>", function()
     eq(#lines(), 11)
 end)
 
-test(":GridTable takes a count argument", function()
+test(":TablaMd takes a count argument", function()
     buf(NAMES, { 4, 2 })
-    vim.cmd("GridTable delete_row 2")
+    vim.cmd("TablaMd delete_row 2")
     eq(body_col(1), { "N", "nube", "", "ana" })
 end)
 
@@ -738,12 +738,12 @@ end)
 
 test("insert_table in pipe format", function()
     buf({ "" }, { 1, 0 })
-    require("gridtable.convert").insert_table("Uno, Dos", "pipe")
+    require("tablamd.convert").insert_table("Uno, Dos", "pipe")
     vim.cmd.stopinsert()
     eq(lines(), { "| Uno | Dos |", "| --- | --- |", "|     |     |" })
     eq(cursor(), { 3, 2 })
     buf({ "" }, { 1, 0 })
-    require("gridtable.convert").insert_table("2", "pipe")
+    require("tablamd.convert").insert_table("2", "pipe")
     vim.cmd.stopinsert()
     eq(lines()[1], "|     |     |")
 end)
@@ -813,7 +813,7 @@ end)
 
 test("insert_table with headers", function()
     buf({ "" }, { 1, 0 })
-    require("gridtable.convert").insert_table("Uno, Dos")
+    require("tablamd.convert").insert_table("Uno, Dos")
     vim.cmd.stopinsert()
     eq(lines(), {
         "<!-- prettier-ignore-start -->",
@@ -831,7 +831,7 @@ end)
 
 test("insert_table with a column count", function()
     buf({ "text" }, { 1, 0 })
-    require("gridtable.convert").insert_table("2")
+    require("tablamd.convert").insert_table("2")
     vim.cmd.stopinsert()
     eq(lines()[6], "|     |     |")
     eq(#lines(), 9)
@@ -839,10 +839,10 @@ end)
 
 test("insert_table escapes pipes in headers", function()
     buf({ "" }, { 1, 0 })
-    require("gridtable.convert").insert_table("a | b, c")
+    require("tablamd.convert").insert_table("a | b, c")
     vim.cmd.stopinsert()
     eq(lines()[4], "| a \\| b | c   |")
-    eq(require("gridtable.edit").in_table(), true)
+    eq(require("tablamd.edit").in_table(), true)
 end)
 
 test("tabs in cells are expanded", function()

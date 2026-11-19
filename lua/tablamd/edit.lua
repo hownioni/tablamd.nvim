@@ -1,14 +1,14 @@
 -- Buffer operations on the grid table under the cursor: realign, navigation, row editing.
 -- Every operation goes through `run`, which parses the table, lets the operation mutate it,
 -- writes it back realigned and puts the cursor on the requested cell.
-local core = require("gridtable.core")
+local core = require("tablamd.core")
 
 local M = {}
 
 local api = vim.api
 
 local function notify(msg, level)
-    vim.notify("grid table: " .. msg, level or vim.log.levels.INFO)
+    vim.notify("tablamd: " .. msg, level or vim.log.levels.INFO)
 end
 M.notify = notify
 
@@ -89,7 +89,7 @@ function M.run(fn, opts)
     local border = ctx.t.rows[i].kind == "border"
     local c, off
     if ctx.t.format == "pipe" then
-        c, off = require("gridtable.pipe").cell_at(line, col)
+        c, off = require("tablamd.pipe").cell_at(line, col)
     else
         c, off = core.cell_at(line, col)
     end
@@ -134,7 +134,7 @@ end
 --- Auto-align for InsertLeave: merged into the previous undo step, warns on a malformed table.
 function M.auto_align()
     local line = api.nvim_get_current_line()
-    if vim.b.gridtable_autoalign == false or not (line:find("|", 1, true) or core.is_border(line)) then
+    if vim.b.tablamd_autoalign == false or not (line:find("|", 1, true) or core.is_border(line)) then
         return
     end
     M.run(nil, { quiet = true, undojoin = true })
@@ -143,7 +143,7 @@ end
 --- InsertCharPre: a `|` typed inside a row that already has all its pipes is cell text,
 --- so insert it escaped. (Typing a new row by hand still works: it isn't complete yet.)
 function M.escape_typed_pipe()
-    if vim.v.char ~= "|" or vim.b.gridtable_escape_pipes == false then
+    if vim.v.char ~= "|" or vim.b.tablamd_escape_pipes == false then
         return
     end
     local line = api.nvim_get_current_line()
@@ -157,7 +157,7 @@ function M.escape_typed_pipe()
     end
     local ncols
     if format == "pipe" then
-        ncols = #require("gridtable.pipe").split(api.nvim_buf_get_lines(0, s, s + 1, false)[1])
+        ncols = #require("tablamd.pipe").split(api.nvim_buf_get_lines(0, s, s + 1, false)[1])
     else
         ncols = core.border_ncols(api.nvim_buf_get_lines(0, s - 1, s, false)[1])
     end

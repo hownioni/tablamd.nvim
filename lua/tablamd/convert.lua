@@ -1,14 +1,14 @@
 -- Creating and converting tables: `new_table` from a header spec, `convert` toggles grid <-> pipe,
 -- `pandoc` round-trips through pandoc (any table -> grid, wrapping long cells).
-local core = require("gridtable.core")
-local edit = require("gridtable.edit")
+local core = require("tablamd.core")
+local edit = require("tablamd.edit")
 
 local M = {}
 
 local api = vim.api
 
 local function config()
-    return require("gridtable").config
+    return require("tablamd").config
 end
 
 --- Wrap table lines in prettier-ignore markers (conform/prettier would mangle them otherwise).

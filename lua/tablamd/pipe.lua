@@ -13,7 +13,7 @@ local M = {}
 local api = vim.api
 
 local function core()
-    return require("gridtable.core")
+    return require("tablamd.core")
 end
 
 --- Cells of a pipe-table line (outer pipes optional) and the 0-based byte positions of the

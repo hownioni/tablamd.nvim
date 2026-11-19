@@ -1,4 +1,4 @@
--- gridtable.nvim: edit Pandoc grid tables in Markdown.
+-- tablamd.nvim: edit Pandoc grid tables in Markdown.
 -- Pure Lua (no pandoc round-trip except for `convert`), so cell contents are kept verbatim.
 local M = {}
 
@@ -6,11 +6,11 @@ local api = vim.api
 
 M.defaults = {
     filetypes = { "markdown" },
-    -- realign the table on InsertLeave (per buffer: `b:gridtable_autoalign = v:false`)
+    -- realign the table on InsertLeave (per buffer: `b:tablamd_autoalign = v:false`)
     auto_align = true,
     -- turn 'wrap' off while the cursor is on a table line, restore it when leaving
     nowrap = true,
-    -- typing `|` inside a complete row inserts `\|` (per buffer: `b:gridtable_escape_pipes = v:false`)
+    -- typing `|` inside a complete row inserts `\|` (per buffer: `b:tablamd_escape_pipes = v:false`)
     escape_pipes = true,
     -- what \tn creates: "grid", "pipe", or "ask" (asks each time, last choice first)
     new_table_format = "grid",
@@ -98,7 +98,7 @@ M.actions = {
 --- `count = "repeat"` run that many times; `count = "arg"` get it as their argument.
 function M.call(name, count)
     local a = M.actions[name]
-    local fn = require("gridtable." .. a[1])[name]
+    local fn = require("tablamd." .. a[1])[name]
     count = tonumber(count) or vim.v.count1
     if a.count == "arg" then
         return fn(count)
@@ -112,14 +112,14 @@ function M.call(name, count)
 end
 
 function M.in_table()
-    return require("gridtable.edit").in_table()
+    return require("tablamd.edit").in_table()
 end
 
 --- For completion plugins that own <Tab> in insert mode (e.g. blink.cmp): run a nav action
 --- if the cursor is in a table of an attached buffer. Returns true when it handled the key.
----   ["<Tab>"] = { "snippet_forward", function() return require("gridtable").try("next_cell") end, "fallback" }
+---   ["<Tab>"] = { "snippet_forward", function() return require("tablamd").try("next_cell") end, "fallback" }
 function M.try(name)
-    if not vim.b.gridtable_attached or not M.in_table() then
+    if not vim.b.tablamd_attached or not M.in_table() then
         return false
     end
     -- the caller may be inside an expr mapping, where the buffer can't be changed
@@ -163,7 +163,7 @@ local function fallback_keys(mode, lhs)
         end
         local id = tostring(m.callback)
         callbacks[id] = m.callback
-        return vim.keycode(("<Cmd>lua require('gridtable')._fallback(%q)<CR>"):format(id))
+        return vim.keycode(("<Cmd>lua require('tablamd')._fallback(%q)<CR>"):format(id))
     end
     if m.expr == 1 then
         local keys = api.nvim_eval(m.rhs)
@@ -183,12 +183,12 @@ end
 
 local function map_action(buf, name, lhs)
     local a = M.actions[name]
-    local desc = "grid table: " .. a[3]
+    local desc = "tablamd: " .. a[3]
     for _, mode in ipairs(a[2]) do
         if a.nav then
             vim.keymap.set(mode, lhs, function()
                 if M.in_table() and not snippet_active() then
-                    return vim.keycode(("<Cmd>lua require('gridtable').call(%q)<CR>"):format(name))
+                    return vim.keycode(("<Cmd>lua require('tablamd').call(%q)<CR>"):format(name))
                 end
                 return fallback_keys(mode, lhs)
             end, { buffer = buf, expr = true, replace_keycodes = false, silent = true, desc = desc })
@@ -215,10 +215,10 @@ end
 --- Set up keymaps and autocommands in `buf` (0 or nil: current buffer).
 function M.attach(buf)
     buf = (buf == nil or buf == 0) and api.nvim_get_current_buf() or buf
-    if vim.b[buf].gridtable_attached then
+    if vim.b[buf].tablamd_attached then
         return
     end
-    vim.b[buf].gridtable_attached = true
+    vim.b[buf].tablamd_attached = true
     local cfg = M.config
 
     for name, lhs in pairs(cfg.keymaps) do
@@ -230,13 +230,13 @@ function M.attach(buf)
         which_key(buf)
     end
 
-    local group = api.nvim_create_augroup("gridtable-" .. buf, { clear = true })
+    local group = api.nvim_create_augroup("tablamd-" .. buf, { clear = true })
     if cfg.auto_align then
         api.nvim_create_autocmd("InsertLeave", {
             buffer = buf,
             group = group,
             callback = function()
-                require("gridtable.edit").auto_align()
+                require("tablamd.edit").auto_align()
             end,
         })
     end
@@ -245,7 +245,7 @@ function M.attach(buf)
             buffer = buf,
             group = group,
             callback = function()
-                require("gridtable.edit").escape_typed_pipe()
+                require("tablamd.edit").escape_typed_pipe()
             end,
         })
     end
@@ -255,12 +255,12 @@ function M.attach(buf)
             group = group,
             callback = function()
                 local on_table = api.nvim_get_current_line():match("^%s*[|+]") ~= nil and M.in_table()
-                if on_table and vim.w.gridtable_saved_wrap == nil then
-                    vim.w.gridtable_saved_wrap = vim.wo.wrap
+                if on_table and vim.w.tablamd_saved_wrap == nil then
+                    vim.w.tablamd_saved_wrap = vim.wo.wrap
                     vim.opt_local.wrap = false
-                elseif not on_table and vim.w.gridtable_saved_wrap ~= nil then
-                    vim.opt_local.wrap = vim.w.gridtable_saved_wrap
-                    vim.w.gridtable_saved_wrap = nil
+                elseif not on_table and vim.w.tablamd_saved_wrap ~= nil then
+                    vim.opt_local.wrap = vim.w.tablamd_saved_wrap
+                    vim.w.tablamd_saved_wrap = nil
                 end
             end,
         })
@@ -269,7 +269,7 @@ end
 
 function M.setup(opts)
     M.config = vim.tbl_deep_extend("force", vim.deepcopy(M.defaults), opts or {})
-    local group = api.nvim_create_augroup("gridtable", { clear = true })
+    local group = api.nvim_create_augroup("tablamd", { clear = true })
     api.nvim_create_autocmd("FileType", {
         group = group,
         pattern = M.config.filetypes,

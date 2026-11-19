@@ -1,5 +1,5 @@
 -- Cell text objects: `ic` (cell content) and `ac` (everything between the two pipes).
-local core = require("gridtable.core")
+local core = require("tablamd.core")
 
 local M = {}
 
