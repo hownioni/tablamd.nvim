@@ -41,7 +41,7 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 | `\ta`             | `align`             | Realign the table (also done automatically on `InsertLeave`)                |
 | `\tc`             | `convert`           | Convert a pipe/simple/grid table to a grid table with pandoc (visual too)   |
 | `<Tab>` / `<S-Tab>` | `next_cell` / `prev_cell` | Next/previous cell; next on the last cell adds a row                |
-| `<CR>` / `<S-CR>` | `cell_down` / `cell_up`   | Cell below/above, skipping borders; down on the last row adds a row   |
+| `<CR>` / `<S-CR>` | `cell_down` / `cell_up`   | Same column, next/previous row (whole rows: use `j`/`k` inside a multi-line row); down on the last row adds a row |
 | `<A-o>`           | `new_row`           | New row below the current one                                               |
 | `<A-CR>`          | `new_line`          | New line inside the current row (e.g. another bullet in a cell)             |
 | `<A-h>` / `<A-l>` | `move_col_left` / `move_col_right` | Move the column                                              |

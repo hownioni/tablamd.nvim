@@ -183,15 +183,32 @@ function M.prev_cell()
     end)
 end
 
---- Same column, next/previous content line. Going down from the last row adds a row.
+--- Same column, first line of the next/previous row (a multi-line row counts once; use
+--- j/k inside it). Going down from the last row adds a row.
 local function vertical(step)
     M.run(function(ctx, pos)
-        local target = next_row(ctx.t, pos.i, step)
-        if target then
-            return { i = target, c = pos.c, off = 0 }
+        local t = ctx.t
+        local _, blocks = core.split_blocks(t)
+        -- the row the cursor is in; on a border, the row just above it (0 for the top border)
+        local k = 0
+        for j = 1, pos.i do
+            if t.rows[j].kind == "border" then
+                k = k + 1
+            end
         end
-        if step > 0 then
-            local new = add_block_after(ctx, core.block_of(ctx.t, pos.i))
+        if pos.border then
+            k = k - 1
+            -- down goes to the row below the border, up to the row above it
+            if step < 0 then
+                k = k + 1
+            end
+        end
+        local to = k + step
+        if to >= 1 and to <= #blocks then
+            return { i = core.row_index(blocks, to, 1), c = pos.c, off = 0 }
+        end
+        if step > 0 and to > #blocks then
+            local new = add_block_after(ctx, #blocks)
             new.c = pos.c
             return new
         end

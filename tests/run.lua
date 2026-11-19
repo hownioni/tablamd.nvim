@@ -499,6 +499,43 @@ test("<Tab> belongs to an active snippet", function()
     keys("<Esc>")
 end)
 
+local TALL = {
+    "+-------+-----+",
+    "| Act 1 | - a |",
+    "|       | - b |",
+    "+-------+-----+",
+    "| Act 2 | - c |",
+    "|       | - d |",
+    "+-------+-----+",
+}
+
+test("<CR>/<S-CR> move by whole rows in multi-line rows", function()
+    buf(TALL, { 2, 10 }) -- "- a"
+    keys("<CR>")
+    eq(cursor(), { 5, 10 })
+    buf(TALL, { 3, 10 }) -- "- b", second line of the first row
+    keys("i<CR><Esc>")
+    eq(cell_text(), "- c")
+    keys("<S-CR>")
+    eq(cursor()[1], 2)
+    api.nvim_win_set_cursor(0, { 6, 10 }) -- second line of the last row
+    keys("<CR>")
+    eq(#lines(), 9)
+    eq(cursor(), { 8, 10 })
+end)
+
+test("<CR>/<S-CR> from a border go to the row below/above it", function()
+    buf(TALL, { 4, 9 })
+    keys("<CR>")
+    eq(cursor()[1], 5)
+    buf(TALL, { 4, 9 })
+    keys("<S-CR>")
+    eq(cursor()[1], 2)
+    buf(TALL, { 1, 9 })
+    keys("<CR>")
+    eq(cursor()[1], 2)
+end)
+
 test("try() runs an action only inside a table", function()
     buf({ "a" }, { 1, 0 })
     eq(gt.try("next_cell"), false)

@@ -32,7 +32,7 @@ M.defaults = {
         -- inside a table; elsewhere these keys do what they did before
         next_cell = "<Tab>", -- on the last cell: adds a row
         prev_cell = "<S-Tab>",
-        cell_down = "<CR>", -- same column, skipping borders; on the last row: adds a row
+        cell_down = "<CR>", -- same column, next row (multi-line rows count once); on the last row: adds a row
         cell_up = "<S-CR>",
         new_row = "<A-o>",
         new_line = "<A-CR>", -- continuation line inside the current row
