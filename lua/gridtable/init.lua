@@ -31,9 +31,9 @@ M.defaults = {
         convert = "<localleader>tc",
         next_cell = "<A-l>",
         prev_cell = "<A-h>",
-        -- vertical movement is plain j/k; these stay available as :GridTable cell_down/up
-        cell_down = false,
-        cell_up = false,
+        -- same column, next/previous content line (skips border lines)
+        cell_down = "<A-J>",
+        cell_up = "<A-K>",
         new_row = "<A-o>",
         new_line = "<A-CR>",
         insert_col = "<localleader>tic",
