@@ -5,6 +5,7 @@ vim.o.swapfile = false
 vim.o.undolevels = 1000
 vim.cmd("filetype on")
 
+vim.cmd("runtime plugin/gridtable.lua") -- -u NONE skips plugin/
 local gt = require("gridtable")
 gt.setup({ which_key = false })
 
@@ -534,6 +535,76 @@ test("<CR>/<S-CR> from a border go to the row below/above it", function()
     buf(TALL, { 1, 9 })
     keys("<CR>")
     eq(cursor()[1], 2)
+end)
+
+test("<Tab>/<S-Tab> go row by row in multi-line rows", function()
+    buf(TALL, { 2, 10 }) -- "- a", last cell of the first row's first line
+    keys("<Tab>")
+    eq(cursor(), { 5, 2 }) -- "Act 2", not the continuation line
+    keys("<S-Tab>")
+    eq(cursor(), { 2, 10 })
+    api.nvim_win_set_cursor(0, { 3, 2 }) -- first cell of a continuation line
+    keys("<S-Tab>")
+    eq(cursor(), { 2, 10 }) -- that row's first line, last cell
+    api.nvim_win_set_cursor(0, { 6, 10 }) -- last cell of the last row's continuation line
+    keys("<Tab>")
+    eq(#lines(), 9)
+    eq(cursor(), { 8, 2 })
+end)
+
+test("counts: 3\\tdr deletes and yanks three rows as one change", function()
+    buf(NAMES, { 4, 2 })
+    keys("3\\tdr")
+    eq(body_col(1), { "N", "", "ana" })
+    local yanked = vim.split(vim.fn.getreg('"'), "\n", { trimempty = true })
+    eq(#yanked, 6) -- three rows, each with its border
+    keys("u")
+    eq(lines(), NAMES)
+end)
+
+test("counts: deleting rows always leaves one body row", function()
+    buf(NAMES, { 6, 2 })
+    keys("99\\tdr")
+    eq(body_col(1), { "N", "ñu" })
+    keys("u")
+    keys("99\\tdr") -- again from the second body row: keeps the first
+    eq(#vim.tbl_filter(function(l)
+        return l:match("^|")
+    end, lines()), 2)
+end)
+
+test("counts: delete_col, insert_col, move_col", function()
+    local T = { "+---+---+---+---+", "| a | b | c | d |", "+---+---+---+---+" }
+    buf(T, { 2, 6 }) -- on b
+    keys("2\\tdc")
+    eq(lines()[2], "| a | d |")
+    keys("u")
+    keys("2\\tic")
+    eq(lines()[2], "| a | b |   |   | c | d |")
+    buf(T, { 2, 2 })
+    keys("2<A-l>")
+    eq(lines()[2], "| b | c | a | d |")
+    eq(cell_text(), "a")
+    keys("9<A-h>")
+    eq(lines()[2], T[2])
+end)
+
+test("counts: 2<Tab>, 2<CR>, 2<A-o>", function()
+    buf(TALL, { 2, 2 })
+    keys("2<Tab>")
+    eq(cursor(), { 5, 2 })
+    buf(TALL, { 2, 2 })
+    keys("2<CR>")
+    eq(#lines(), 9) -- past the last row: one new row
+    buf(TALL, { 2, 2 })
+    keys("2<A-o>")
+    eq(#lines(), 11)
+end)
+
+test(":GridTable takes a count argument", function()
+    buf(NAMES, { 4, 2 })
+    vim.cmd("GridTable delete_row 2")
+    eq(body_col(1), { "N", "nube", "", "ana" })
 end)
 
 test("try() runs an action only inside a table", function()

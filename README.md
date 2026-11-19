@@ -40,7 +40,7 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 | `\tn`             | `new_table`         | Ask for headers (`A, B, C`) or a column count (`3`) and insert a table      |
 | `\ta`             | `align`             | Realign the table (also done automatically on `InsertLeave`)                |
 | `\tc`             | `convert`           | Convert a pipe/simple/grid table to a grid table with pandoc (visual too)   |
-| `<Tab>` / `<S-Tab>` | `next_cell` / `prev_cell` | Next/previous cell; next on the last cell adds a row                |
+| `<Tab>` / `<S-Tab>` | `next_cell` / `prev_cell` | Next/previous cell along each row's first line, row by row; next on the last cell adds a row |
 | `<CR>` / `<S-CR>` | `cell_down` / `cell_up`   | Same column, next/previous row (whole rows: use `j`/`k` inside a multi-line row); down on the last row adds a row |
 | `<A-o>`           | `new_row`           | New row below the current one                                               |
 | `<A-CR>`          | `new_line`          | New line inside the current row (e.g. another bullet in a cell)             |
@@ -91,8 +91,12 @@ keymap = {
 
 `try(action)` runs the action and returns `true` only when the cursor is in a table.
 
-Every action is also available as `:GridTable {action}`, e.g. `:GridTable sort` or
-`:'<,'>GridTable convert`.
+Counts work like Vim's: `3<Tab>`, `2<CR>`, `3<A-o>` and `2\tic` repeat, `5\tdr` deletes (and
+yanks) five rows as one change, `2\tdc` deletes two columns and `3<A-j>`/`2<A-l>` move a row or
+column that many places. Deleting is clamped so the table keeps one body row and one column.
+
+Every action is also available as `:GridTable {action}`, e.g. `:GridTable sort`,
+`:GridTable delete_row 3` (with a count) or `:'<,'>GridTable convert`.
 
 Other behaviour:
 

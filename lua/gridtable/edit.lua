@@ -158,27 +158,48 @@ local function add_block_after(ctx, k)
     return { i = core.row_index(blocks, k + 1, 1), c = 1, off = 0 }
 end
 
+--- Index of the row (block) the cursor is in. On a border: the row above it (0 on the top).
+local function current_block(t, pos)
+    local k = 0
+    for j = 1, pos.i do
+        if t.rows[j].kind == "border" then
+            k = k + 1
+        end
+    end
+    return pos.border and k - 1 or k
+end
+
+--- Next cell along the row's first line; after the last one, the first cell of the next row
+--- (a multi-line row counts once). On the last cell of the table, adds a row.
 function M.next_cell()
     M.run(function(ctx, pos)
-        if not pos.border and pos.c < ctx.t.ncols then
+        local t = ctx.t
+        if not pos.border and pos.c < t.ncols then
             return { i = pos.i, c = pos.c + 1, off = 0 }
         end
-        local nxt = next_row(ctx.t, pos.i, 1)
-        if nxt then
-            return { i = nxt, c = 1, off = 0 }
+        local _, blocks = core.split_blocks(t)
+        local to = current_block(t, pos) + 1
+        if to <= #blocks then
+            return { i = core.row_index(blocks, to, 1), c = 1, off = 0 }
         end
-        return add_block_after(ctx, core.block_of(ctx.t, pos.i))
+        return add_block_after(ctx, #blocks)
     end)
 end
 
+--- Reverse of next_cell: before the first cell, the last cell of the previous row's first line.
 function M.prev_cell()
     M.run(function(ctx, pos)
+        local t = ctx.t
         if not pos.border and pos.c > 1 then
             return { i = pos.i, c = pos.c - 1, off = 0 }
         end
-        local prv = next_row(ctx.t, pos.i, -1)
-        if prv then
-            return { i = prv, c = ctx.t.ncols, off = 0 }
+        local _, blocks = core.split_blocks(t)
+        local k = current_block(t, pos)
+        -- from a continuation line, or from a border, the previous stop is row k's first line
+        local _, o = core.block_of(t, pos.i)
+        local to = (pos.border or o > 1) and k or k - 1
+        if to >= 1 then
+            return { i = core.row_index(blocks, to, 1), c = t.ncols, off = 0 }
         end
     end)
 end
@@ -189,25 +210,13 @@ local function vertical(step)
     M.run(function(ctx, pos)
         local t = ctx.t
         local _, blocks = core.split_blocks(t)
-        -- the row the cursor is in; on a border, the row just above it (0 for the top border)
-        local k = 0
-        for j = 1, pos.i do
-            if t.rows[j].kind == "border" then
-                k = k + 1
-            end
-        end
-        if pos.border then
-            k = k - 1
-            -- down goes to the row below the border, up to the row above it
-            if step < 0 then
-                k = k + 1
-            end
-        end
-        local to = k + step
+        local k = current_block(t, pos)
+        -- from a border, down is the row below it (k + 1) and up the row above it (k)
+        local to = (pos.border and step < 0) and k or k + step
         if to >= 1 and to <= #blocks then
             return { i = core.row_index(blocks, to, 1), c = pos.c, off = 0 }
         end
-        if step > 0 and to > #blocks then
+        if step > 0 then
             local new = add_block_after(ctx, #blocks)
             new.c = pos.c
             return new
@@ -275,83 +284,96 @@ function M.insert_col_before()
     insert_column(false)
 end
 
-function M.delete_col()
+--- Delete `count` columns starting at the cursor's. Always leaves one column.
+function M.delete_col(count)
+    count = count or 1
     M.run(function(ctx, pos)
-        if ctx.t.ncols == 1 then
+        local n = math.min(count, ctx.t.ncols - pos.c + 1, ctx.t.ncols - 1)
+        if n < 1 then
             notify("can't delete the only column")
             return false
         end
         each_column_list(ctx.t, function(list)
-            table.remove(list, pos.c)
+            for _ = 1, n do
+                table.remove(list, pos.c)
+            end
         end)
-        ctx.t.ncols = ctx.t.ncols - 1
+        ctx.t.ncols = ctx.t.ncols - n
         return { i = pos.i, c = math.min(pos.c, ctx.t.ncols), off = 0 }
     end)
 end
 
-local function move_column(step)
+--- Move the cursor's column `count` places left (step -1) or right (1), clamped.
+local function move_column(step, count)
+    count = count or 1
     M.run(function(ctx, pos)
-        local to = pos.c + step
-        if to < 1 or to > ctx.t.ncols then
+        local to = math.max(1, math.min(ctx.t.ncols, pos.c + step * count))
+        if to == pos.c then
             return
         end
         each_column_list(ctx.t, function(list)
-            list[pos.c], list[to] = list[to], list[pos.c]
+            table.insert(list, to, table.remove(list, pos.c))
         end)
         return { i = pos.i, c = to, off = pos.off }
     end)
 end
 
-function M.move_col_left()
-    move_column(-1)
+function M.move_col_left(count)
+    move_column(-1, count)
 end
 
-function M.move_col_right()
-    move_column(1)
+function M.move_col_right(count)
+    move_column(1, count)
 end
 
 -- Rows (a row = a block of lines between two borders) -----------------------
 
---- Delete the current row and yank it (with a border below, so `p` on a border line
---- pastes it back as a valid row).
-function M.delete_row()
+--- Delete `count` rows starting at the current one and yank them (each with a border below,
+--- so `p` on a border line pastes them back as valid rows). Always leaves one body row.
+function M.delete_row(count)
+    count = count or 1
     M.run(function(ctx, pos)
         local t = ctx.t
         local borders, blocks = core.split_blocks(t)
         local k = core.block_of(t, pos.i)
         local header = core.has_header(borders)
-        local body = #blocks - (header and 1 or 0)
-        if #blocks == 1 or (header and k > 1 and body == 1) then
+        -- deleting the header (k == 1) makes the table headerless, so any row may remain;
+        -- otherwise the header stays and needs a body row under it
+        local keep = (header and k > 1) and 2 or 1
+        local n = math.min(count, #blocks - k + 1, #blocks - keep)
+        if n < 1 then
             notify("can't delete the only body row")
             return false
         end
         core.compute_widths(t)
         local yank = {}
-        for _, r in ipairs(blocks[k]) do
-            yank[#yank + 1] = (core.render(t, r))
+        for b = k, k + n - 1 do
+            for _, r in ipairs(blocks[b]) do
+                yank[#yank + 1] = (core.render(t, r))
+            end
+            yank[#yank + 1] = (core.render(t, core.new_border(t.ncols, "-")))
         end
-        yank[#yank + 1] = (core.render(t, core.new_border(t.ncols, "-")))
         vim.fn.setreg(vim.v.register, yank, "l")
 
         if header and k == 1 then
             -- the table becomes headerless: alignment moves to the top border
             borders[1].aligns = borders[2].aligns
-            table.remove(borders, 2)
-        elseif k < #blocks then
-            table.remove(borders, k + 1)
-        else
-            table.remove(borders, k)
         end
-        table.remove(blocks, k)
+        -- drop each deleted row's border below it, or above it when deleting the last rows
+        local first_border = (k + n - 1 < #blocks) and k + 1 or k
+        for _ = 1, n do
+            table.remove(borders, first_border)
+            table.remove(blocks, k)
+        end
         core.join_blocks(t, borders, blocks)
         k = math.min(k, #blocks)
         return { i = core.row_index(blocks, k, 1), c = pos.c, off = 0 }
     end)
 end
 
---- Move the current row `step` rows (times the count, like :move), clamped to the body.
-local function move_row(step)
-    local count = vim.v.count1
+--- Move the current row `count` rows down (step 1) or up (-1), clamped to the body.
+local function move_row(step, count)
+    count = count or 1
     M.run(function(ctx, pos)
         local t = ctx.t
         local borders, blocks = core.split_blocks(t)
@@ -374,12 +396,12 @@ local function move_row(step)
     end)
 end
 
-function M.move_row_down()
-    move_row(1)
+function M.move_row_down(count)
+    move_row(1, count)
 end
 
-function M.move_row_up()
-    move_row(-1)
+function M.move_row_up(count)
+    move_row(-1, count)
 end
 
 -- Alignment -------------------------------------------------------------------

@@ -13,7 +13,7 @@ vim.api.nvim_create_user_command("GridTable", function(opts)
     if name == "convert" and opts.range > 0 then
         return require("gridtable.convert").convert_range(opts.line1, opts.line2)
     end
-    gt.call(name, unpack(opts.fargs, 2))
+    gt.call(name, opts.fargs[2] or 1) -- optional count: `:GridTable delete_row 3`
 end, {
     nargs = "+",
     range = true,

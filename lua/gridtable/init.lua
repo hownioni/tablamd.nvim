@@ -59,27 +59,27 @@ M.defaults = {
 
 M.config = vim.deepcopy(M.defaults)
 
---- name -> { module, modes, desc, nav = bool }. `nav` maps are only active inside a table
+--- name -> { module, modes, desc, nav = bool, count = "repeat"|"arg" }. `nav` maps are only active inside a table
 --- (and no snippet is active); otherwise the key does what it would without the plugin.
 M.actions = {
     new_table = { "convert", { "n" }, "new table" },
     align = { "edit", { "n" }, "align" },
     convert = { "convert", { "n", "x" }, "convert/rewrap (pandoc)" },
-    next_cell = { "edit", { "n", "i" }, "next cell", nav = true },
-    prev_cell = { "edit", { "n", "i" }, "previous cell", nav = true },
-    cell_down = { "edit", { "n", "i" }, "cell below", nav = true },
-    cell_up = { "edit", { "n", "i" }, "cell above", nav = true },
-    new_row = { "edit", { "n", "i" }, "new row below", nav = true },
-    new_line = { "edit", { "n", "i" }, "new line inside row", nav = true },
-    insert_col = { "edit", { "n" }, "insert column right" },
-    insert_col_before = { "edit", { "n" }, "insert column left" },
-    delete_col = { "edit", { "n" }, "delete column" },
-    move_col_left = { "edit", { "n", "i" }, "move column left", nav = true },
-    move_col_right = { "edit", { "n", "i" }, "move column right", nav = true },
-    delete_row = { "edit", { "n" }, "delete row" },
-    move_row_down = { "edit", { "n", "i" }, "move row down", nav = true },
-    move_row_up = { "edit", { "n", "i" }, "move row up", nav = true },
-    cycle_align = { "edit", { "n" }, "cycle column alignment" },
+    next_cell = { "edit", { "n", "i" }, "next cell", nav = true, count = "repeat" },
+    prev_cell = { "edit", { "n", "i" }, "previous cell", nav = true, count = "repeat" },
+    cell_down = { "edit", { "n", "i" }, "cell below", nav = true, count = "repeat" },
+    cell_up = { "edit", { "n", "i" }, "cell above", nav = true, count = "repeat" },
+    new_row = { "edit", { "n", "i" }, "new row below", nav = true, count = "repeat" },
+    new_line = { "edit", { "n", "i" }, "new line inside row", nav = true, count = "repeat" },
+    insert_col = { "edit", { "n" }, "insert column right", count = "repeat" },
+    insert_col_before = { "edit", { "n" }, "insert column left", count = "repeat" },
+    delete_col = { "edit", { "n" }, "delete column", count = "arg" },
+    move_col_left = { "edit", { "n", "i" }, "move column left", nav = true, count = "arg" },
+    move_col_right = { "edit", { "n", "i" }, "move column right", nav = true, count = "arg" },
+    delete_row = { "edit", { "n" }, "delete row", count = "arg" },
+    move_row_down = { "edit", { "n", "i" }, "move row down", nav = true, count = "arg" },
+    move_row_up = { "edit", { "n", "i" }, "move row up", nav = true, count = "arg" },
+    cycle_align = { "edit", { "n" }, "cycle column alignment", count = "repeat" },
     toggle_header = { "edit", { "n" }, "toggle header row" },
     sort = { "edit", { "n" }, "sort rows by column" },
     sort_desc = { "edit", { "n" }, "sort rows by column (descending)" },
@@ -89,9 +89,22 @@ M.actions = {
     outer_cell = { "textobj", { "x", "o" }, "around cell" },
 }
 
-function M.call(name, ...)
+--- Run an action. `count` defaults to the typed count (v:count1), which is only meaningful
+--- straight from a mapping: v:count keeps the last count typed. Actions marked
+--- `count = "repeat"` run that many times; `count = "arg"` get it as their argument.
+function M.call(name, count)
     local a = M.actions[name]
-    return require("gridtable." .. a[1])[name](...)
+    local fn = require("gridtable." .. a[1])[name]
+    count = tonumber(count) or vim.v.count1
+    if a.count == "arg" then
+        return fn(count)
+    elseif a.count == "repeat" then
+        for _ = 1, count do
+            fn()
+        end
+        return
+    end
+    return fn()
 end
 
 function M.in_table()
@@ -107,7 +120,7 @@ function M.try(name)
     end
     -- the caller may be inside an expr mapping, where the buffer can't be changed
     vim.schedule(function()
-        M.call(name)
+        M.call(name, 1) -- v:count is stale by now
     end)
     return true
 end
