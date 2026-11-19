@@ -41,11 +41,10 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 | `\ta`             | `align`             | Realign the table (also done automatically on `InsertLeave`)                |
 | `\tc`             | `convert`           | Convert a pipe/simple/grid table to a grid table with pandoc (visual too)   |
 | `<A-l>` / `<A-h>` | `next_cell` / `prev_cell` | Next/previous cell; next on the last cell adds a row                  |
-| `<A-j>` / `<A-k>` | `cell_down` / `cell_up`   | Same column, next/previous line                                       |
 | `<A-o>`           | `new_row`           | New row below the current one                                               |
 | `<A-CR>`          | `new_line`          | New line inside the current row (e.g. another bullet in a cell)             |
 | `<A-L>` / `<A-H>` | `move_col_right` / `move_col_left` | Move the column                                              |
-| `<A-J>` / `<A-K>` | `move_row_down` / `move_row_up`    | Move the row (never across the header)                       |
+| `<A-j>` / `<A-k>` | `move_row_down` / `move_row_up`    | Move the row, whole (takes a count; never across the header) |
 | `\tic` / `\tiC`   | `insert_col` / `insert_col_before` | Insert a column right/left of the cursor                     |
 | `\tdc`            | `delete_col`        | Delete the column                                                           |
 | `\tdr`            | `delete_row`        | Delete the row and yank it (`p` on a border line pastes it back)            |
@@ -57,7 +56,10 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 | `ic` / `ac`       | `inner_cell` / `outer_cell` | Text objects: cell content / everything between the pipes           |
 
 `\` is `<localleader>`. The `<A-…>` keys are only active inside a table. Elsewhere they run
-whatever global mapping the key had (e.g. a move-line mapping on `<A-j>`).
+whatever global mapping the key had. `<A-j>`/`<A-k>` are meant as the table-aware version of a
+move-line mapping: on a table line, moving a single line would break the table, so they move the
+whole row instead. Moving vertically between cells is plain `j`/`k`; `cell_down`/`cell_up` exist
+as actions without a default key.
 
 Every action is also available as `:GridTable {action}`, e.g. `:GridTable sort` or
 `:'<,'>GridTable convert`.

@@ -31,8 +31,9 @@ M.defaults = {
         convert = "<localleader>tc",
         next_cell = "<A-l>",
         prev_cell = "<A-h>",
-        cell_down = "<A-j>",
-        cell_up = "<A-k>",
+        -- vertical movement is plain j/k; these stay available as :GridTable cell_down/up
+        cell_down = false,
+        cell_up = false,
         new_row = "<A-o>",
         new_line = "<A-CR>",
         insert_col = "<localleader>tic",
@@ -41,8 +42,9 @@ M.defaults = {
         move_col_left = "<A-H>",
         move_col_right = "<A-L>",
         delete_row = "<localleader>tdr",
-        move_row_down = "<A-J>",
-        move_row_up = "<A-K>",
+        -- table-aware version of a move-line mapping: moves the whole row, never past a border
+        move_row_down = "<A-j>",
+        move_row_up = "<A-k>",
         cycle_align = "<localleader>tA",
         toggle_header = "<localleader>th",
         sort = "<localleader>ts",

@@ -423,6 +423,26 @@ test("break_row refuses the header", function()
     eq(#lines(), 6)
 end)
 
+test("<A-j>/<A-k> move rows inside a table, with a count", function()
+    buf(ROWS, { 4, 2 })
+    keys("<A-j>")
+    eq(cell_text(), "a")
+    eq(cursor()[1], 6)
+    keys("<A-k>")
+    eq(lines(), ROWS)
+    keys("5<A-j>") -- clamped to the last row
+    eq(lines()[9], "|   | x |")
+    eq(cell_text(), "a")
+    keys("i<A-k><Esc>") -- insert mode too
+    eq(lines()[6], "| a | 1 |")
+end)
+
+test("moving the header row is refused", function()
+    buf(ROWS, { 2, 2 })
+    keys("<A-j>")
+    eq(lines(), ROWS)
+end)
+
 test("tables need a border at both ends", function()
     buf({ "| a | b |", "+---+---+" }, { 1, 2 })
     eq(gt.in_table(), false)

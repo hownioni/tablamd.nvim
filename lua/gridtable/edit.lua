@@ -326,20 +326,26 @@ function M.delete_row()
     end)
 end
 
+--- Move the current row `step` rows (times the count, like :move), clamped to the body.
 local function move_row(step)
+    local count = vim.v.count1
     M.run(function(ctx, pos)
         local t = ctx.t
         local borders, blocks = core.split_blocks(t)
         local k, o = core.block_of(t, pos.i)
-        local to = k + step
-        if pos.border or to < 1 or to > #blocks then
+        local first = core.has_header(borders) and 2 or 1
+        if pos.border then
             return
         end
-        if core.has_header(borders) and (k == 1 or to == 1) then
-            notify("can't move rows across the header")
+        if k < first then
+            notify("can't move the header row")
             return false
         end
-        blocks[k], blocks[to] = blocks[to], blocks[k]
+        local to = math.max(first, math.min(#blocks, k + step * count))
+        if to == k then
+            return
+        end
+        table.insert(blocks, to, table.remove(blocks, k))
         core.join_blocks(t, borders, blocks)
         return { i = core.row_index(blocks, to, o), c = pos.c, off = pos.off }
     end)
