@@ -1,5 +1,9 @@
 # tablamd.nvim
 
+> [!IMPORTANT]
+> **AI usage disclosure:** This plugin is vibecoded in its entirety, use it at your own risk.
+> I needed something like this and had the Claude subscription lying around so I decided to make use of it.
+
 Edit Markdown tables from Neovim: [Pandoc grid tables](https://pandoc.org/MANUAL.html#extension-grid_tables)
 and ordinary pipe tables. Realign as you type, move between cells, add, delete, move and sort rows
 and columns, and convert between the two formats.
@@ -41,27 +45,27 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 
 ## Usage
 
-| Default key       | Action              | What it does                                                                |
-| ----------------- | ------------------- | --------------------------------------------------------------------------- |
-| `\tn`             | `new_table`         | Ask for headers (`A, B, C`) or a column count (`3`) and insert a table (format: `new_table_format`) |
-| `\ta`             | `align`             | Realign the table (also done automatically on `InsertLeave`)                |
-| `\tc`             | `convert`           | Toggle grid ↔ pipe, keeping cell text as is (anything else goes to `\tC`)  |
-| `\tC`             | `pandoc`            | Convert any table (pipe/simple/grid) to grid through pandoc, wrapping long cells (visual too) |
-| `<Tab>` / `<S-Tab>` | `next_cell` / `prev_cell` | Next/previous cell along each row's first line, row by row; next on the last cell adds a row |
-| `<CR>` / `<S-CR>` | `cell_down` / `cell_up`   | Same column, next/previous row (whole rows: use `j`/`k` inside a multi-line row); down on the last row adds a row |
-| `<A-o>`           | `new_row`           | New row below the current one                                               |
-| `<A-CR>`          | `new_line`          | New line inside the current row (e.g. another bullet in a cell)             |
-| `<A-h>` / `<A-l>` | `move_col_left` / `move_col_right` | Move the column                                              |
-| `<A-j>` / `<A-k>` | `move_row_down` / `move_row_up`    | Move the whole row (takes a count; never across the header)  |
-| `\tic` / `\tiC`   | `insert_col` / `insert_col_before` | Insert a column right/left of the cursor                     |
-| `\tdc`            | `delete_col`        | Delete the column                                                           |
-| `\tdr`            | `delete_row`        | Delete the row and yank it (`p` on a border line pastes it back)            |
-| `\tA`             | `cycle_align`       | Cycle the column's alignment: default, left, center, right                  |
-| `\th`             | `toggle_header`     | Make the first row the header, or a normal row                              |
-| `\ts` / `\tS`     | `sort` / `sort_desc`| Sort body rows by the column (numbers numerically, accents folded)          |
-| `\tj`             | `join_row`          | Join a multi-line row into one line                                         |
-| `\tb`             | `break_row`         | Break a multi-line row into one row per line                                |
-| `ic` / `ac`       | `inner_cell` / `outer_cell` | Text objects: cell content / everything between the pipes           |
+| Default key         | Action                             | What it does                                                                                                      |
+| ------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `\tn`               | `new_table`                        | Ask for headers (`A, B, C`) or a column count (`3`) and insert a table (format: `new_table_format`)               |
+| `\ta`               | `align`                            | Realign the table (also done automatically on `InsertLeave`)                                                      |
+| `\tc`               | `convert`                          | Toggle grid ↔ pipe, keeping cell text as is (anything else goes to `\tC`)                                         |
+| `\tC`               | `pandoc`                           | Convert any table (pipe/simple/grid) to grid through pandoc, wrapping long cells (visual too)                     |
+| `<Tab>` / `<S-Tab>` | `next_cell` / `prev_cell`          | Next/previous cell along each row's first line, row by row; next on the last cell adds a row                      |
+| `<CR>` / `<S-CR>`   | `cell_down` / `cell_up`            | Same column, next/previous row (whole rows: use `j`/`k` inside a multi-line row); down on the last row adds a row |
+| `<A-o>`             | `new_row`                          | New row below the current one                                                                                     |
+| `<A-CR>`            | `new_line`                         | New line inside the current row (e.g. another bullet in a cell)                                                   |
+| `<A-h>` / `<A-l>`   | `move_col_left` / `move_col_right` | Move the column                                                                                                   |
+| `<A-j>` / `<A-k>`   | `move_row_down` / `move_row_up`    | Move the whole row (takes a count; never across the header)                                                       |
+| `\tic` / `\tiC`     | `insert_col` / `insert_col_before` | Insert a column right/left of the cursor                                                                          |
+| `\tdc`              | `delete_col`                       | Delete the column                                                                                                 |
+| `\tdr`              | `delete_row`                       | Delete the row and yank it (`p` on a border line pastes it back)                                                  |
+| `\tA`               | `cycle_align`                      | Cycle the column's alignment: default, left, center, right                                                        |
+| `\th`               | `toggle_header`                    | Make the first row the header, or a normal row                                                                    |
+| `\ts` / `\tS`       | `sort` / `sort_desc`               | Sort body rows by the column (numbers numerically, accents folded)                                                |
+| `\tj`               | `join_row`                         | Join a multi-line row into one line                                                                               |
+| `\tb`               | `break_row`                        | Break a multi-line row into one row per line                                                                      |
+| `ic` / `ac`         | `inner_cell` / `outer_cell`        | Text objects: cell content / everything between the pipes                                                         |
 
 `\` is `<localleader>`. The navigation keys work in normal and insert mode, and only inside a
 table. Elsewhere they do exactly what they did before: the key's own mapping, looked up when you
