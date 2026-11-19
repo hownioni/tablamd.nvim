@@ -287,4 +287,70 @@ function M.move_col_right()
     move_column(1)
 end
 
+-- Rows (a row = a block of lines between two borders) -----------------------
+
+--- Delete the current row and yank it (with a border below, so `p` on a border line
+--- pastes it back as a valid row).
+function M.delete_row()
+    M.run(function(ctx, pos)
+        local t = ctx.t
+        local borders, blocks = core.split_blocks(t)
+        local k = core.block_of(t, pos.i)
+        local header = core.has_header(borders)
+        local body = #blocks - (header and 1 or 0)
+        if #blocks == 1 or (header and k > 1 and body == 1) then
+            notify("can't delete the only body row")
+            return false
+        end
+        core.compute_widths(t)
+        local yank = {}
+        for _, r in ipairs(blocks[k]) do
+            yank[#yank + 1] = (core.render(t, r))
+        end
+        yank[#yank + 1] = (core.render(t, core.new_border(t.ncols, "-")))
+        vim.fn.setreg(vim.v.register, yank, "l")
+
+        if header and k == 1 then
+            -- the table becomes headerless: alignment moves to the top border
+            borders[1].aligns = borders[2].aligns
+            table.remove(borders, 2)
+        elseif k < #blocks then
+            table.remove(borders, k + 1)
+        else
+            table.remove(borders, k)
+        end
+        table.remove(blocks, k)
+        core.join_blocks(t, borders, blocks)
+        k = math.min(k, #blocks)
+        return { i = core.row_index(blocks, k, 1), c = pos.c, off = 0 }
+    end)
+end
+
+local function move_row(step)
+    M.run(function(ctx, pos)
+        local t = ctx.t
+        local borders, blocks = core.split_blocks(t)
+        local k, o = core.block_of(t, pos.i)
+        local to = k + step
+        if pos.border or to < 1 or to > #blocks then
+            return
+        end
+        if core.has_header(borders) and (k == 1 or to == 1) then
+            notify("can't move rows across the header")
+            return false
+        end
+        blocks[k], blocks[to] = blocks[to], blocks[k]
+        core.join_blocks(t, borders, blocks)
+        return { i = core.row_index(blocks, to, o), c = pos.c, off = pos.off }
+    end)
+end
+
+function M.move_row_down()
+    move_row(1)
+end
+
+function M.move_row_up()
+    move_row(-1)
+end
+
 return M

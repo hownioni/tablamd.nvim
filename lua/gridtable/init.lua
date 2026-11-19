@@ -40,6 +40,9 @@ M.defaults = {
         delete_col = "<localleader>tdc",
         move_col_left = "<A-H>",
         move_col_right = "<A-L>",
+        delete_row = "<localleader>tdr",
+        move_row_down = "<A-J>",
+        move_row_up = "<A-K>",
     },
 }
 
@@ -62,6 +65,9 @@ M.actions = {
     delete_col = { "edit", { "n" }, "delete column" },
     move_col_left = { "edit", { "n", "i" }, "move column left", nav = true },
     move_col_right = { "edit", { "n", "i" }, "move column right", nav = true },
+    delete_row = { "edit", { "n" }, "delete row" },
+    move_row_down = { "edit", { "n", "i" }, "move row down", nav = true },
+    move_row_up = { "edit", { "n", "i" }, "move row up", nav = true },
 }
 
 function M.call(name, ...)

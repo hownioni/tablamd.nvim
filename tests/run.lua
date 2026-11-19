@@ -232,6 +232,63 @@ test("column ops work from a border line", function()
     eq(cursor(), { 5, 1 })
 end)
 
+local ROWS = {
+    "+---+---+",
+    "| H | h |",
+    "+===+===+",
+    "| a | 1 |",
+    "|   | x |",
+    "+---+---+",
+    "| b | 2 |",
+    "+---+---+",
+    "| c | 3 |",
+    "+---+---+",
+}
+
+test("delete_row removes a multi-line row and yanks it", function()
+    buf(ROWS, { 5, 6 })
+    gt.call("delete_row")
+    eq(lines(), { ROWS[1], ROWS[2], ROWS[3], ROWS[7], ROWS[8], ROWS[9], ROWS[10] })
+    eq(cell_text(), "2")
+    eq(vim.fn.getreg('"'), "| a | 1 |\n|   | x |\n+---+---+\n")
+    eq(vim.fn.getregtype('"'), "V")
+    -- paste it back below a border
+    api.nvim_win_set_cursor(0, { 3, 0 })
+    keys("p")
+    eq(lines(), ROWS)
+end)
+
+test("delete_row on the last row keeps the bottom border", function()
+    buf(ROWS, { 9, 2 })
+    gt.call("delete_row")
+    eq(#lines(), 8)
+    eq(lines()[8], "+---+---+")
+    eq(cell_text(), "b")
+end)
+
+test("delete_row refuses the only body row", function()
+    buf({ "+---+", "| H |", "+===+", "| a |", "+---+" }, { 4, 2 })
+    gt.call("delete_row")
+    eq(#lines(), 5)
+end)
+
+test("deleting the header leaves a headerless table with its alignment", function()
+    buf({ "+---+", "| H |", "+:=:+", "| a |", "+---+", "| b |", "+---+" }, { 2, 2 })
+    gt.call("delete_row")
+    eq(lines(), { "+:-:+", "| a |", "+---+", "| b |", "+---+" })
+end)
+
+test("move_row_down / up swap whole rows, not across the header", function()
+    buf(ROWS, { 5, 6 })
+    gt.call("move_row_down")
+    eq(lines(), { ROWS[1], ROWS[2], ROWS[3], ROWS[7], ROWS[6], ROWS[4], ROWS[5], ROWS[8], ROWS[9], ROWS[10] })
+    eq(cursor(), { 7, 6 })
+    gt.call("move_row_up")
+    eq(lines(), ROWS)
+    gt.call("move_row_up") -- would cross the header
+    eq(lines(), ROWS)
+end)
+
 test("tables need a border at both ends", function()
     buf({ "| a | b |", "+---+---+" }, { 1, 2 })
     eq(gt.in_table(), false)
