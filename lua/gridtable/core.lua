@@ -180,7 +180,8 @@ function M.compute_widths(t)
     t.widths = widths
 end
 
---- Render one row; returns the line and 0-based byte offsets where each cell's content starts.
+--- Render one row; returns the line and 0-based byte offsets where each cell's content starts
+--- (for a border: where each segment starts).
 function M.render(t, r)
     if r.kind == "border" then
         local segs = {}
@@ -195,7 +196,13 @@ function M.render(t, r)
             end
             segs[c] = seg
         end
-        return t.indent .. "+" .. table.concat(segs, "+") .. "+", {}
+        -- starts: where each segment's fill begins (just after its `+`)
+        local starts, len = {}, #t.indent + 1
+        for c, seg in ipairs(segs) do
+            starts[c] = len
+            len = len + #seg + 1
+        end
+        return t.indent .. "+" .. table.concat(segs, "+") .. "+", starts
     end
     local out, starts = { t.indent, "|" }, {}
     local len = #t.indent + 1

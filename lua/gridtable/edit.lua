@@ -45,7 +45,8 @@ function M.write(ctx, opts)
     return changed
 end
 
---- Put the cursor at target { i = row index, c = column, off = byte offset } (or { i, col }).
+--- Put the cursor at target { i = row index, c = column, off = byte offset }. On a border line
+--- `col` (a raw column) wins over `c` (snap to the column's segment).
 function M.place(ctx, target)
     local i = math.max(1, math.min(target.i, #ctx.t.rows))
     local r, lnum = ctx.t.rows[i], ctx.s + i - 1
@@ -53,6 +54,8 @@ function M.place(ctx, target)
         local c = math.min(target.c, ctx.t.ncols)
         local col = ctx.starts[i][c] + math.min(target.off or 0, #r.cells[c])
         api.nvim_win_set_cursor(0, { lnum, col })
+    elseif target.c and not target.col then
+        api.nvim_win_set_cursor(0, { lnum, ctx.starts[i][math.min(target.c, ctx.t.ncols)] })
     else
         api.nvim_win_set_cursor(0, { lnum, math.max(0, math.min(target.col or 0, #ctx.lines[i] - 1)) })
     end
@@ -90,9 +93,6 @@ function M.run(fn, opts)
         target = target or pos
     end
     M.write(ctx, opts)
-    if target.border and target == pos then
-        target = { i = pos.i, col = pos.col }
-    end
     M.place(ctx, target)
     return ctx
 end
@@ -216,6 +216,75 @@ function M.new_line()
         table.insert(ctx.t.rows, pos.i + 1, core.new_row(ctx.t.ncols))
         return { i = pos.i + 1, c = pos.c, off = 0 }
     end)
+end
+
+-- Columns ---------------------------------------------------------------------
+
+--- Apply fn(list, row) to every row's cells and every border's aligns.
+local function each_column_list(t, fn)
+    for _, r in ipairs(t.rows) do
+        if r.kind == "row" then
+            fn(r.cells, "")
+        else
+            fn(r.aligns, {})
+        end
+    end
+end
+
+local function insert_column(after)
+    M.run(function(ctx, pos)
+        local at = after and pos.c + 1 or pos.c
+        each_column_list(ctx.t, function(list, empty)
+            table.insert(list, at, empty)
+        end)
+        ctx.t.ncols = ctx.t.ncols + 1
+        return { i = pos.i, c = at, off = 0 }
+    end)
+end
+
+--- New empty column to the right of the cursor's column.
+function M.insert_col()
+    insert_column(true)
+end
+
+--- New empty column to the left of the cursor's column.
+function M.insert_col_before()
+    insert_column(false)
+end
+
+function M.delete_col()
+    M.run(function(ctx, pos)
+        if ctx.t.ncols == 1 then
+            notify("can't delete the only column")
+            return false
+        end
+        each_column_list(ctx.t, function(list)
+            table.remove(list, pos.c)
+        end)
+        ctx.t.ncols = ctx.t.ncols - 1
+        return { i = pos.i, c = math.min(pos.c, ctx.t.ncols), off = 0 }
+    end)
+end
+
+local function move_column(step)
+    M.run(function(ctx, pos)
+        local to = pos.c + step
+        if to < 1 or to > ctx.t.ncols then
+            return
+        end
+        each_column_list(ctx.t, function(list)
+            list[pos.c], list[to] = list[to], list[pos.c]
+        end)
+        return { i = pos.i, c = to, off = pos.off }
+    end)
+end
+
+function M.move_col_left()
+    move_column(-1)
+end
+
+function M.move_col_right()
+    move_column(1)
 end
 
 return M

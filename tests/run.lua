@@ -172,6 +172,66 @@ test("a malformed table warns on InsertLeave", function()
     assert(msgs[1]:find("border has 1 columns"), msgs[1])
 end)
 
+local SMALL = {
+    "+---+----+",
+    "| a | bb |",
+    "+:==+===:+",
+    "| 1 | 22 |",
+    "+---+----+",
+}
+
+test("insert_col adds an empty column to the right", function()
+    buf(SMALL, { 4, 2 })
+    gt.call("insert_col")
+    eq(lines(), {
+        "+---+---+----+",
+        "| a |   | bb |",
+        "+:==+===+===:+",
+        "| 1 |   | 22 |",
+        "+---+---+----+",
+    })
+    eq(cursor(), { 4, 6 })
+end)
+
+test("insert_col_before adds a column to the left", function()
+    buf(SMALL, { 2, 2 })
+    gt.call("insert_col_before")
+    eq(lines()[2], "|   | a | bb |")
+    eq(cursor(), { 2, 2 })
+end)
+
+test("delete_col removes the column, alignment included", function()
+    buf(SMALL, { 4, 6 })
+    gt.call("delete_col")
+    eq(lines(), { "+---+", "| a |", "+:==+", "| 1 |", "+---+" })
+    gt.call("delete_col") -- the only column: refused
+    eq(lines()[2], "| a |")
+end)
+
+test("move_col_right / left carry cells and alignment", function()
+    buf(SMALL, { 4, 2 })
+    gt.call("move_col_right")
+    eq(lines(), {
+        "+----+---+",
+        "| bb | a |",
+        "+===:+:==+",
+        "| 22 | 1 |",
+        "+----+---+",
+    })
+    eq(cell_text(), "1")
+    gt.call("move_col_right") -- already last: no-op
+    eq(cell_text(), "1")
+    gt.call("move_col_left")
+    eq(lines(), SMALL)
+end)
+
+test("column ops work from a border line", function()
+    buf(SMALL, { 5, 6 }) -- second segment of the bottom border
+    gt.call("delete_col")
+    eq(lines()[2], "| a |")
+    eq(cursor(), { 5, 1 })
+end)
+
 test("tables need a border at both ends", function()
     buf({ "| a | b |", "+---+---+" }, { 1, 2 })
     eq(gt.in_table(), false)

@@ -35,6 +35,11 @@ M.defaults = {
         cell_up = "<A-k>",
         new_row = "<A-o>",
         new_line = "<A-CR>",
+        insert_col = "<localleader>tic",
+        insert_col_before = "<localleader>tiC",
+        delete_col = "<localleader>tdc",
+        move_col_left = "<A-H>",
+        move_col_right = "<A-L>",
     },
 }
 
@@ -52,6 +57,11 @@ M.actions = {
     cell_up = { "edit", { "n", "i" }, "cell above", nav = true },
     new_row = { "edit", { "n", "i" }, "new row below", nav = true },
     new_line = { "edit", { "n", "i" }, "new line inside row", nav = true },
+    insert_col = { "edit", { "n" }, "insert column right" },
+    insert_col_before = { "edit", { "n" }, "insert column left" },
+    delete_col = { "edit", { "n" }, "delete column" },
+    move_col_left = { "edit", { "n", "i" }, "move column left", nav = true },
+    move_col_right = { "edit", { "n", "i" }, "move column right", nav = true },
 }
 
 function M.call(name, ...)
@@ -114,7 +124,11 @@ local function which_key(buf)
     if not ok then
         return
     end
-    wk.add({ { "<localleader>t", group = "Table", mode = { "n", "x" }, buffer = buf } })
+    wk.add({
+        { "<localleader>t", group = "Table", mode = { "n", "x" }, buffer = buf },
+        { "<localleader>ti", group = "Insert", buffer = buf },
+        { "<localleader>td", group = "Delete", buffer = buf },
+    })
 end
 
 --- Set up keymaps and autocommands in `buf` (0 or nil: current buffer).
