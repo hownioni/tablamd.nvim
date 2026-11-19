@@ -48,6 +48,22 @@ function M.split_row(s)
     return cells, seps
 end
 
+--- Escape every unescaped `|` as `\|`.
+function M.escape(s)
+    local out, i = {}, 1
+    while i <= #s do
+        local ch = s:sub(i, i)
+        if ch == "\\" then
+            out[#out + 1] = s:sub(i, i + 1)
+            i = i + 2
+        else
+            out[#out + 1] = ch == "|" and "\\|" or ch
+            i = i + 1
+        end
+    end
+    return table.concat(out)
+end
+
 --- 0-based byte offsets of the `+` corners of a border line.
 function M.border_seps(l)
     local seps, i = {}, 0

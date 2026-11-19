@@ -147,6 +147,31 @@ test("auto-align honours b:gridtable_autoalign = false", function()
     eq(lines()[1], ALIGNED[1])
 end)
 
+test("a typed | inside a complete row is escaped", function()
+    buf(ALIGNED, { 4, 2 })
+    keys("ea | B<Esc>")
+    eq(lines()[4], "| Ana \\| B   | 30  |")
+end)
+
+test("a typed | is left alone when building a row by hand", function()
+    buf({ "+---+---+", "| a | b |", "+---+---+" }, { 3, 0 })
+    keys("O| x | y |<Esc>")
+    eq(lines()[3], "| x | y |")
+end)
+
+test("a malformed table warns on InsertLeave", function()
+    local msgs = {}
+    local orig = vim.notify
+    vim.notify = function(m)
+        msgs[#msgs + 1] = m
+    end
+    buf({ "+---+---+", "| a | b |", "+---+", "| c | d |", "+---+---+" }, { 2, 2 })
+    keys("ix<Esc>")
+    vim.notify = orig
+    eq(#msgs, 1)
+    assert(msgs[1]:find("border has 1 columns"), msgs[1])
+end)
+
 test("tables need a border at both ends", function()
     buf({ "| a | b |", "+---+---+" }, { 1, 2 })
     eq(gt.in_table(), false)

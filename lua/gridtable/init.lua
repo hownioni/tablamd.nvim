@@ -10,6 +10,8 @@ M.defaults = {
     auto_align = true,
     -- turn 'wrap' off while the cursor is on a table line, restore it when leaving
     nowrap = true,
+    -- typing `|` inside a complete row inserts `\|` (per buffer: `b:gridtable_escape_pipes = v:false`)
+    escape_pipes = true,
     -- wrap new/converted tables in <!-- prettier-ignore-start/end -->
     prettier_ignore = true,
     pandoc = {
@@ -140,6 +142,15 @@ function M.attach(buf)
             group = group,
             callback = function()
                 require("gridtable.edit").auto_align()
+            end,
+        })
+    end
+    if cfg.escape_pipes then
+        api.nvim_create_autocmd("InsertCharPre", {
+            buffer = buf,
+            group = group,
+            callback = function()
+                require("gridtable.edit").escape_typed_pipe()
             end,
         })
     end

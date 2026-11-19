@@ -114,6 +114,29 @@ function M.auto_align()
     M.run(nil, { quiet = true, undojoin = true })
 end
 
+--- InsertCharPre: a `|` typed inside a row that already has all its pipes is cell text,
+--- so insert it escaped. (Typing a new row by hand still works: it isn't complete yet.)
+function M.escape_typed_pipe()
+    if vim.v.char ~= "|" or vim.b.gridtable_escape_pipes == false then
+        return
+    end
+    local line = api.nvim_get_current_line()
+    local lnum, col = unpack(api.nvim_win_get_cursor(0))
+    if not core.is_row(line) or line:sub(col, col) == "\\" then
+        return
+    end
+    local s = core.find_bounds(0, lnum)
+    if not s then
+        return
+    end
+    local ncols = core.border_ncols(api.nvim_buf_get_lines(0, s - 1, s, false)[1])
+    local _, seps = core.split_row(line)
+    -- only between the first and last pipe; outside them it may be a new structural pipe
+    if #seps >= ncols + 1 and col > seps[1] and col <= seps[#seps] then
+        vim.v.char = "\\|"
+    end
+end
+
 --- Row index of the next/previous content line from i (skipping borders), or nil.
 local function next_row(t, i, step)
     local j = i + step
