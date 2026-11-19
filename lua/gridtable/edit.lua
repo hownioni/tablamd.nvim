@@ -19,7 +19,7 @@ function M.load(buf, lnum)
         return nil
     end
     local lines = api.nvim_buf_get_lines(buf, s - 1, e, false)
-    local t, err = core.parse(lines)
+    local t, err = core.parse(lines, vim.bo[buf].tabstop)
     if not t then
         return nil, err
     end

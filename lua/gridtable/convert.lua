@@ -36,7 +36,9 @@ function M.insert_table(spec)
             return edit.notify("column count must be a positive integer", vim.log.levels.WARN)
         end
     else
-        headers = vim.tbl_map(vim.trim, vim.split(spec, ",", { plain = true }))
+        headers = vim.tbl_map(function(h)
+            return core.escape(vim.trim(h))
+        end, vim.split(spec, ",", { plain = true }))
         n = #headers
     end
     local indent = api.nvim_get_current_line():match("^(%s*)")

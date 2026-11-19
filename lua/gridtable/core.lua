@@ -76,9 +76,29 @@ function M.border_seps(l)
     end
 end
 
+--- Expand tabs to spaces (tab stops counted from the start of the cell). A tab's display
+--- width depends on its screen column, so left in place it would break the alignment.
+local function expand_tabs(s, ts)
+    if not s:find("\t", 1, true) then
+        return s
+    end
+    local out, col = {}, 0
+    for piece, tab in s:gmatch("([^\t]*)(\t?)") do
+        out[#out + 1] = piece
+        col = col + vim.fn.strdisplaywidth(piece)
+        if tab ~= "" then
+            local n = ts - col % ts
+            out[#out + 1] = (" "):rep(n)
+            col = col + n
+        end
+    end
+    return table.concat(out)
+end
+
 --- Strip exactly one leading pad space and trailing whitespace, keeping inner indentation.
-function M.norm_cell(c)
-    return (c:gsub("^ ", ""):gsub("%s+$", ""))
+function M.norm_cell(c, ts)
+    c = c:gsub("^ ", "")
+    return (expand_tabs(c, ts or 8):gsub("%s+$", ""))
 end
 
 --- Number of columns of a border line.
@@ -135,7 +155,7 @@ function M.new_row(ncols)
     return { kind = "row", cells = cells }
 end
 
-function M.parse(tlines)
+function M.parse(tlines, ts)
     local indent = tlines[1]:match("^(%s*)")
     local ncols = M.border_ncols(tlines[1])
     local rows = {}
@@ -157,7 +177,7 @@ function M.parse(tlines)
             end
             local cells = {}
             for c = 1, ncols do
-                cells[c] = M.norm_cell(raw[c] or "")
+                cells[c] = M.norm_cell(raw[c] or "", ts)
             end
             rows[i] = { kind = "row", cells = cells }
         end

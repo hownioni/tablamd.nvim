@@ -363,6 +363,21 @@ test("insert_table with a column count", function()
     eq(#lines(), 9)
 end)
 
+test("insert_table escapes pipes in headers", function()
+    buf({ "" }, { 1, 0 })
+    require("gridtable.convert").insert_table("a | b, c")
+    vim.cmd.stopinsert()
+    eq(lines()[4], "| a \\| b | c   |")
+    eq(require("gridtable.edit").in_table(), true)
+end)
+
+test("tabs in cells are expanded", function()
+    buf({ "+-+-+", "| a\tb | c |", "+-+-+" }, { 2, 2 })
+    vim.bo.tabstop = 4
+    gt.call("align")
+    eq(lines()[2], "| a   b | c |")
+end)
+
 test("nav keys fall back to the global mapping outside a table", function()
     vim.keymap.set("n", "<A-j>", "<Cmd>let g:fallback = 1<CR>")
     buf({ "plain" }, { 1, 0 })
