@@ -411,4 +411,99 @@ function M.toggle_header()
     end)
 end
 
+-- Sorting ---------------------------------------------------------------------
+
+-- fold accents so "Álvaro" sorts with the a's; ñ goes right after n
+local FOLD = {
+    ["á"] = "a",
+    ["é"] = "e",
+    ["í"] = "i",
+    ["ó"] = "o",
+    ["ú"] = "u",
+    ["ü"] = "u",
+    ["Á"] = "a",
+    ["É"] = "e",
+    ["Í"] = "i",
+    ["Ó"] = "o",
+    ["Ú"] = "u",
+    ["Ü"] = "u",
+    ["à"] = "a",
+    ["è"] = "e",
+    ["ì"] = "i",
+    ["ò"] = "o",
+    ["ù"] = "u",
+    ["ç"] = "c",
+    ["ñ"] = "n~",
+    ["Ñ"] = "n~",
+}
+
+local function sort_key(block, c)
+    local parts = {}
+    for _, r in ipairs(block) do
+        if r.cells[c] ~= "" then
+            parts[#parts + 1] = vim.trim(r.cells[c])
+        end
+    end
+    local text = table.concat(parts, " ")
+    return {
+        empty = text == "",
+        num = tonumber((text:gsub("^%$", ""))),
+        str = text:gsub("[\195][\128-\191]", FOLD):lower(),
+    }
+end
+
+--- Empty cells last, numbers before text and compared numerically.
+local function key_less(a, b)
+    if a.empty ~= b.empty then
+        return b.empty
+    end
+    if (a.num ~= nil) ~= (b.num ~= nil) then
+        return a.num ~= nil
+    end
+    if a.num and a.num ~= b.num then
+        return a.num < b.num
+    end
+    return a.str < b.str
+end
+
+--- Sort the body rows by the cursor's column (stable). The cursor stays on its row.
+local function sort_rows(desc)
+    M.run(function(ctx, pos)
+        local t = ctx.t
+        local borders, blocks = core.split_blocks(t)
+        local first = core.has_header(borders) and 2 or 1
+        local k, o = core.block_of(t, pos.i)
+        local items = {}
+        for b = first, #blocks do
+            items[#items + 1] = { block = blocks[b], key = sort_key(blocks[b], pos.c), idx = b }
+        end
+        table.sort(items, function(x, y)
+            if key_less(x.key, y.key) then
+                return not desc
+            elseif key_less(y.key, x.key) then
+                return desc
+            end
+            return x.idx < y.idx
+        end)
+        local cur = k
+        for n, it in ipairs(items) do
+            blocks[first + n - 1] = it.block
+            if it.idx == cur then
+                k = first + n - 1
+            end
+        end
+        -- sorted rows are plain body rows: keep borders as they were
+        core.join_blocks(t, borders, blocks)
+        return { i = core.row_index(blocks, k, math.max(o, 1)), c = pos.c, off = 0 }
+    end)
+end
+
+function M.sort()
+    sort_rows(false)
+end
+
+function M.sort_desc()
+    sort_rows(true)
+end
+
 return M

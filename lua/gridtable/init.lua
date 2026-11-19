@@ -45,6 +45,8 @@ M.defaults = {
         move_row_up = "<A-K>",
         cycle_align = "<localleader>tA",
         toggle_header = "<localleader>th",
+        sort = "<localleader>ts",
+        sort_desc = "<localleader>tS",
         inner_cell = "ic",
         outer_cell = "ac",
     },
@@ -74,6 +76,8 @@ M.actions = {
     move_row_up = { "edit", { "n", "i" }, "move row up", nav = true },
     cycle_align = { "edit", { "n" }, "cycle column alignment" },
     toggle_header = { "edit", { "n" }, "toggle header row" },
+    sort = { "edit", { "n" }, "sort rows by column" },
+    sort_desc = { "edit", { "n" }, "sort rows by column (descending)" },
     inner_cell = { "textobj", { "x", "o" }, "inner cell" },
     outer_cell = { "textobj", { "x", "o" }, "around cell" },
 }

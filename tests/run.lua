@@ -345,6 +345,49 @@ test("toggle_header needs two rows", function()
     eq(lines()[3], "+---+")
 end)
 
+local function body_col(c)
+    local out = {}
+    for _, l in ipairs(lines()) do
+        if l:match("^|") then
+            out[#out + 1] = vim.trim(vim.split(l, "|", { plain = true })[c + 1])
+        end
+    end
+    return out
+end
+
+local NAMES = {
+    "+----+----+",
+    "| N  | V  |",
+    "+====+====+",
+    "| ñu | 10 |",
+    "+----+----+",
+    "| Óscar | 9 |",
+    "+----+----+",
+    "| nube | 2 |",
+    "+----+----+",
+    "| | 2 |",
+    "+----+----+",
+    "| ana | x |",
+    "+----+----+",
+}
+
+test("sort folds accents, puts ñ after n and empties last", function()
+    buf(NAMES, { 8, 2 }) -- on "nube"
+    gt.call("sort")
+    eq(body_col(1), { "N", "ana", "nube", "ñu", "Óscar", "" })
+    eq(cell_text(), "nube")
+end)
+
+test("sort compares numbers numerically and is stable", function()
+    buf(NAMES, { 4, 2 })
+    vim.cmd("normal! 0f1") -- cursor on "10", column 2
+    gt.call("sort")
+    eq(body_col(2), { "V", "2", "2", "9", "10", "x" })
+    eq(body_col(1), { "N", "nube", "", "Óscar", "ñu", "ana" })
+    gt.call("sort_desc")
+    eq(body_col(2), { "V", "x", "10", "9", "2", "2" })
+end)
+
 test("tables need a border at both ends", function()
     buf({ "| a | b |", "+---+---+" }, { 1, 2 })
     eq(gt.in_table(), false)
