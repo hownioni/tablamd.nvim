@@ -607,6 +607,17 @@ test(":GridTable takes a count argument", function()
     eq(body_col(1), { "N", "nube", "", "ana" })
 end)
 
+test("widths don't depend on window options (wrap + linebreak + breakindent)", function()
+    -- strdisplaywidth() counts wrapping padding for text wider than the window
+    -- (the break must fall inside a word, so it isn't a multiple of 8 characters)
+    local long = "uno " .. ("palabra "):rep(12) .. "fin"
+    buf({ "+---+---+", "| " .. long .. " | b |", "+---+---+" }, { 2, 2 })
+    vim.wo.wrap, vim.wo.linebreak, vim.wo.breakindent = true, true, true
+    gt.call("align")
+    vim.wo.wrap, vim.wo.linebreak, vim.wo.breakindent = false, false, false
+    eq(lines()[1], "+-" .. ("-"):rep(#long) .. "-+---+")
+end)
+
 test("try() runs an action only inside a table", function()
     buf({ "a" }, { 1, 0 })
     eq(gt.try("next_cell"), false)

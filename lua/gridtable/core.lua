@@ -85,7 +85,7 @@ local function expand_tabs(s, ts)
     local out, col = {}, 0
     for piece, tab in s:gmatch("([^\t]*)(\t?)") do
         out[#out + 1] = piece
-        col = col + vim.fn.strdisplaywidth(piece)
+        col = col + api.nvim_strwidth(piece)
         if tab ~= "" then
             local n = ts - col % ts
             out[#out + 1] = (" "):rep(n)
@@ -193,7 +193,7 @@ function M.compute_widths(t)
     for _, r in ipairs(t.rows) do
         if r.kind == "row" then
             for c, cell in ipairs(r.cells) do
-                widths[c] = math.max(widths[c], vim.fn.strdisplaywidth(cell))
+                widths[c] = math.max(widths[c], api.nvim_strwidth(cell))
             end
         end
     end
@@ -229,7 +229,7 @@ function M.render(t, r)
     for c, w in ipairs(t.widths) do
         local cell = r.cells[c]
         starts[c] = len + 1
-        local piece = " " .. cell .. (" "):rep(w - vim.fn.strdisplaywidth(cell)) .. " |"
+        local piece = " " .. cell .. (" "):rep(w - api.nvim_strwidth(cell)) .. " |"
         out[#out + 1] = piece
         len = len + #piece
     end
