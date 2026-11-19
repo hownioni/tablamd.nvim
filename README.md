@@ -107,3 +107,7 @@ require("gridtable").setup({
 make test     # headless test suite
 make format   # stylua
 ```
+
+## License
+
+MIT
