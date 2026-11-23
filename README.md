@@ -62,6 +62,7 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 | `\tdr`              | `delete_row`                       | Delete the row and yank it (`p` on a border line pastes it back)                                                  |
 | `\tA`               | `cycle_align`                      | Cycle the column's alignment: default, left, center, right                                                        |
 | `\th`               | `toggle_header`                    | Make the first row the header, or a normal row                                                                    |
+| `\tH`               | `toggle_header_col`                | Make the first column a header column (bold row labels, protected), or a normal column                           |
 | `\ts` / `\tS`       | `sort` / `sort_desc`               | Sort body rows by the column (numbers numerically, accents folded)                                                |
 | `\tj`               | `join_row`                         | Join a multi-line row into one line                                                                               |
 | `\tb`               | `break_row`                        | Break a multi-line row into one row per line                                                                      |
@@ -116,6 +117,24 @@ Other behaviour:
 - `'wrap'` is turned off while the cursor is on a table line and restored after.
 - New and converted tables are wrapped in `<!-- prettier-ignore-start/end -->` so prettier
   doesn't reformat them.
+
+## Header column
+
+Markdown has no syntax for a header column, so `\tH` writes it the way it shows in the PDF:
+every body cell of the first column in bold (`**Ana**`, list markers kept outside:
+`- **item**`). The bold text is the marker, so nothing else is added to the file, and it works on
+grid and pipe tables alike. A table has a header column when every non-empty body cell of its
+first column is bold.
+
+While it's on:
+
+- A row you add and type into gets its first cell bolded too, on realign or when you move to
+  another cell. A cell you're writing bold by hand (`**Pe`) is left alone.
+- The column is protected: it can't be moved, deleted or have a column inserted before it, and
+  other columns can't be moved in front of it. `\tH` again turns it back into a normal column.
+- Sorting by it ignores the `**` markers.
+- It combines with a header row: the header row's first cell (the corner) stays plain, and
+  `\th` bolds or unbolds that cell as the row stops or starts being the header.
 
 ## Pipe tables
 

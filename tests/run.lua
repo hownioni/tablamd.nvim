@@ -877,6 +877,124 @@ test("nav keys fall back to the global mapping outside a table", function()
     eq(vim.g.fallback, 2)
 end)
 
+-- Header column ----------------------------------------------------------------
+
+local HC_PIPE = {
+    "| Name | Mon | Tue |",
+    "| ---- | --- | --- |",
+    "| Ana  | 3   | 4   |",
+    "| Luis | 1   | 2   |",
+}
+local HC_PIPE_ON = {
+    "| Name     | Mon | Tue |",
+    "| -------- | --- | --- |",
+    "| **Ana**  | 3   | 4   |",
+    "| **Luis** | 1   | 2   |",
+}
+
+test("toggle_header_col bolds and unbolds the first column's body cells", function()
+    buf(HC_PIPE, { 3, 2 })
+    gt.call("toggle_header_col")
+    eq(lines(), HC_PIPE_ON)
+    eq(cell_text(), "Ana**") -- still on the A
+    gt.call("toggle_header_col")
+    eq(lines(), {
+        "| Name | Mon | Tue |",
+        "| ---- | --- | --- |",
+        "| Ana  | 3   | 4   |",
+        "| Luis | 1   | 2   |",
+    })
+end)
+
+test("toggle_header_col on a grid table keeps list markers outside the bold", function()
+    buf({ "+---+---+", "| a | 1 |", "| - b | |", "+---+---+", "| | 2 |", "+---+---+" }, { 2, 2 })
+    gt.call("toggle_header_col")
+    eq(lines(), {
+        "+---------+---+",
+        "| **a**   | 1 |",
+        "| - **b** |   |",
+        "+---------+---+",
+        "|         | 2 |",
+        "+---------+---+",
+    })
+end)
+
+test("toggle_header_col with an empty first column does nothing", function()
+    buf({ "| a | b |", "| --- | --- |", "|  | 1 |" }, { 3, 2 })
+    gt.call("toggle_header_col")
+    eq(lines()[3], "|  | 1 |") -- untouched, not even realigned
+end)
+
+test("a row typed into a header-column table gets bolded on realign", function()
+    buf(HC_PIPE_ON, { 4, 2 })
+    gt.call("new_row")
+    keys("iPedro<Esc>")
+    eq(lines()[5], "| **Pedro** |     |     |")
+    eq(cell_text(), "o**") -- still on the last letter typed
+end)
+
+test("a half-typed bold cell isn't wrapped again", function()
+    buf(HC_PIPE_ON, { 4, 2 })
+    gt.call("new_row")
+    keys("i**Pe<Esc>")
+    eq(lines()[5], "| **Pe     |     |     |")
+end)
+
+test("the header column can't be moved, deleted or have a column put before it", function()
+    buf(HC_PIPE_ON, { 3, 2 })
+    gt.call("move_col_right")
+    gt.call("delete_col")
+    gt.call("insert_col_before")
+    eq(lines(), HC_PIPE_ON)
+    api.nvim_win_set_cursor(0, { 3, 13 }) -- Mon
+    gt.call("move_col_left")
+    eq(lines(), HC_PIPE_ON)
+    gt.call("insert_col_before")
+    eq(lines()[1], "| Name     |     | Mon | Tue |")
+end)
+
+test("without a header column the first column moves as before", function()
+    buf(HC_PIPE, { 3, 2 })
+    gt.call("move_col_right")
+    eq(lines()[3], "| 3   | Ana  | 4   |")
+end)
+
+local HC_GRID = {
+    "+----------+-----+",
+    "| Name     | Mon |",
+    "+==========+=====+",
+    "| **Ana**  | 3   |",
+    "+----------+-----+",
+    "| **Luis** | 1   |",
+    "+----------+-----+",
+}
+
+test("grid table with a header row and a header column", function()
+    buf(HC_GRID, { 4, 4 })
+    gt.call("align")
+    eq(lines(), HC_GRID) -- the header row's first cell stays plain
+    gt.call("delete_col")
+    eq(lines(), HC_GRID)
+    gt.call("new_row")
+    keys("iPedro<Esc>")
+    eq(lines()[6], "| **Pedro** |     |") -- right below Ana
+end)
+
+test("toggle_header keeps the header column", function()
+    buf(HC_GRID, { 2, 2 })
+    gt.call("toggle_header") -- the header becomes a body row: its first cell gets bolded
+    eq(lines()[2], "| **Name** | Mon |")
+    eq(lines()[3], "+----------+-----+")
+    gt.call("toggle_header") -- and back: unbolded as the header
+    eq(lines(), HC_GRID)
+end)
+
+test("sorting ignores the bold markers", function()
+    buf({ "| n | x |", "| --- | --- |", "| **10** | a |", "| **9** | b |" }, { 3, 2 })
+    gt.call("sort")
+    eq({ body_col(1)[3], body_col(1)[4] }, { "**9**", "**10**" })
+end)
+
 test("in_table is cheap: only reads the table's lines", function()
     local big = {}
     for i = 1, 20000 do

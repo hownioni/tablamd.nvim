@@ -2,6 +2,7 @@
 -- Every operation goes through `run`, which parses the table, lets the operation mutate it,
 -- writes it back realigned and puts the cursor on the requested cell.
 local core = require("tablamd.core")
+local headcol = require("tablamd.headcol")
 
 local M = {}
 
@@ -99,6 +100,11 @@ function M.run(fn, opts)
     local pos = { i = i, c = c, off = off, col = col, border = border }
     if c > ctx.t.ncols then -- cursor was on/after the closing pipe
         pos.c, pos.off = ctx.t.ncols, border and 0 or math.huge
+    end
+    -- a row typed into a table with a header column gets its first cell bolded too
+    local follow = headcol.follow(ctx.t, (core.block_of(ctx.t, i)))
+    if pos.c == 1 and follow[ctx.t.rows[i]] and pos.off ~= math.huge then
+        pos.off = pos.off + 2
     end
     local target = pos
     if fn then
@@ -283,6 +289,15 @@ end
 
 -- Columns ---------------------------------------------------------------------
 
+--- A header column stays the first column: refuse (with a message) when `cond` holds.
+local function protect_header_col(ctx, cond, msg)
+    if cond and headcol.active(ctx.t) then
+        notify(msg .. " (\\tH turns it off)")
+        return true
+    end
+    return false
+end
+
 --- Apply fn(list, row) to every row's cells and every border's aligns.
 local function each_column_list(t, fn)
     for _, r in ipairs(t.rows) do
@@ -297,6 +312,9 @@ end
 local function insert_column(after)
     M.run(function(ctx, pos)
         local at = after and pos.c + 1 or pos.c
+        if protect_header_col(ctx, at == 1, "can't insert a column before the header column") then
+            return false
+        end
         each_column_list(ctx.t, function(list, empty)
             table.insert(list, at, empty)
         end)
@@ -319,6 +337,9 @@ end
 function M.delete_col(count)
     count = count or 1
     M.run(function(ctx, pos)
+        if protect_header_col(ctx, pos.c == 1, "can't delete the header column") then
+            return false
+        end
         local n = math.min(count, ctx.t.ncols - pos.c + 1, ctx.t.ncols - 1)
         if n < 1 then
             notify("can't delete the only column")
@@ -338,7 +359,11 @@ end
 local function move_column(step, count)
     count = count or 1
     M.run(function(ctx, pos)
-        local to = math.max(1, math.min(ctx.t.ncols, pos.c + step * count))
+        if protect_header_col(ctx, pos.c == 1, "can't move the header column") then
+            return false
+        end
+        local min = headcol.active(ctx.t) and 2 or 1
+        local to = math.max(min, math.min(ctx.t.ncols, pos.c + step * count))
         if to == pos.c then
             return
         end
@@ -471,9 +496,10 @@ function M.cycle_align()
 end
 
 --- Make the first row the header (`=` separator below it), or turn the header into a
---- normal row. Alignment moves between the separator and the top border with it.
+--- normal row. Alignment moves between the separator and the top border with it. A header
+--- column stays one: the row's first cell is unbolded as a header, bolded as a body row.
 function M.toggle_header()
-    M.run(function(ctx)
+    M.run(function(ctx, pos)
         if not grid_only(ctx, "toggling the header") then
             return false
         end
@@ -482,6 +508,7 @@ function M.toggle_header()
             notify("a header needs at least one row below it")
             return false
         end
+        local header_col = headcol.active(ctx.t)
         local top, sep = borders[1], borders[2]
         local from, to = top, sep
         if sep.fill == "=" then
@@ -498,6 +525,39 @@ function M.toggle_header()
         end
         if has(from) and not has(to) then
             from.aligns, to.aligns = to.aligns, from.aligns
+        end
+        if header_col then
+            local now_header = sep.fill == "="
+            for _, r in ipairs(blocks[1]) do
+                local cell, new = r.cells[1], nil
+                if now_header and headcol.is_bold(cell) then
+                    new = headcol.unbold(cell)
+                elseif not now_header and cell:match("%S") and not headcol.is_bold(cell) then
+                    new = headcol.bold(cell)
+                end
+                if new then
+                    r.cells[1] = new
+                    if r == ctx.t.rows[pos.i] and pos.c == 1 and pos.off ~= math.huge then
+                        pos.off = math.max(0, pos.off + (now_header and -2 or 2))
+                    end
+                end
+            end
+        end
+    end)
+end
+
+--- Make the first column a header column (its body cells bold, so the PDF shows them as row
+--- labels, and protected from column moves and deletes), or a normal column again.
+function M.toggle_header_col()
+    M.run(function(ctx, pos)
+        local on, changed = headcol.toggle(ctx.t)
+        if on and next(changed) == nil then
+            notify("the first column has no text to make a header column")
+            return false
+        end
+        api.nvim_echo({ { on and "header column on" or "header column off" } }, false, {})
+        if pos.c == 1 and changed[ctx.t.rows[pos.i]] and pos.off ~= math.huge then
+            pos.off = math.max(0, pos.off + (on and 2 or -2))
         end
     end)
 end
@@ -532,7 +592,7 @@ local function sort_key(block, c)
     local parts = {}
     for _, r in ipairs(block) do
         if r.cells[c] ~= "" then
-            parts[#parts + 1] = vim.trim(r.cells[c])
+            parts[#parts + 1] = vim.trim(headcol.strip(r.cells[c]))
         end
     end
     local text = table.concat(parts, " ")

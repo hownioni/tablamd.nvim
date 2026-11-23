@@ -51,6 +51,7 @@ M.defaults = {
         delete_row = "<localleader>tdr",
         cycle_align = "<localleader>tA",
         toggle_header = "<localleader>th",
+        toggle_header_col = "<localleader>tH", -- first column as row labels (bold, protected)
         sort = "<localleader>ts",
         sort_desc = "<localleader>tS",
         join_row = "<localleader>tj",
@@ -85,6 +86,7 @@ M.actions = {
     move_row_up = { "edit", { "n", "i" }, "move row up", nav = true, count = "arg" },
     cycle_align = { "edit", { "n" }, "cycle column alignment", count = "repeat" },
     toggle_header = { "edit", { "n" }, "toggle header row" },
+    toggle_header_col = { "edit", { "n" }, "toggle header column" },
     sort = { "edit", { "n" }, "sort rows by column" },
     sort_desc = { "edit", { "n" }, "sort rows by column (descending)" },
     join_row = { "edit", { "n" }, "join row lines" },
