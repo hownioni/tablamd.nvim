@@ -276,6 +276,19 @@ function M.new_row()
     end)
 end
 
+--- New empty row above the current row. Never above the header row.
+function M.new_row_above()
+    M.run(function(ctx, pos)
+        local t = ctx.t
+        local k = core.block_of(t, pos.i)
+        if k == 1 and core.has_header((core.split_blocks(t))) then
+            notify("can't add a row above the header")
+            return false
+        end
+        return add_block_after(ctx, k - 1)
+    end)
+end
+
 --- Continuation line inside the current row (e.g. another bullet in a cell).
 function M.new_line()
     M.run(function(ctx, pos)

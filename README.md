@@ -53,7 +53,7 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 | `\tC`               | `pandoc`                           | Convert any table (pipe/simple/grid) to grid through pandoc, wrapping long cells (visual too)                     |
 | `<Tab>` / `<S-Tab>` | `next_cell` / `prev_cell`          | Next/previous cell along each row's first line, row by row; next on the last cell adds a row                      |
 | `<CR>` / `<S-CR>`   | `cell_down` / `cell_up`            | Same column, next/previous row (whole rows: use `j`/`k` inside a multi-line row); down on the last row adds a row |
-| `<A-o>`             | `new_row`                          | New row below the current one                                                                                     |
+| `<A-o>` / `<A-O>`   | `new_row` / `new_row_above`        | New row below/above the current one                                                                               |
 | `<A-CR>`            | `new_line`                         | New line inside the current row (e.g. another bullet in a cell)                                                   |
 | `<A-h>` / `<A-l>`   | `move_col_left` / `move_col_right` | Move the column                                                                                                   |
 | `<A-j>` / `<A-k>`   | `move_row_down` / `move_row_up`    | Move the whole row (takes a count; never across the header)                                                       |

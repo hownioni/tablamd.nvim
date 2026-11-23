@@ -38,6 +38,7 @@ M.defaults = {
         cell_down = "<CR>", -- same column, next row (multi-line rows count once); on the last row: adds a row
         cell_up = "<S-CR>",
         new_row = "<A-o>",
+        new_row_above = "<A-O>",
         new_line = "<A-CR>", -- continuation line inside the current row
         -- move things: <A-hjkl> = column left, row down, row up, column right.
         -- <A-j>/<A-k> are the table-aware version of a move-line mapping.
@@ -75,6 +76,7 @@ M.actions = {
     cell_down = { "edit", { "n", "i" }, "cell below", nav = true, count = "repeat" },
     cell_up = { "edit", { "n", "i" }, "cell above", nav = true, count = "repeat" },
     new_row = { "edit", { "n", "i" }, "new row below", nav = true, count = "repeat" },
+    new_row_above = { "edit", { "n", "i" }, "new row above", nav = true, count = "repeat" },
     new_line = { "edit", { "n", "i" }, "new line inside row", nav = true, count = "repeat" },
     insert_col = { "edit", { "n" }, "insert column right", count = "repeat" },
     insert_col_before = { "edit", { "n" }, "insert column left", count = "repeat" },
