@@ -385,6 +385,9 @@ end
 --- Copy the cursor's column (cells and alignment) right beside it, cursor in the copy.
 function M.duplicate_col()
     M.run(function(ctx, pos)
+        if protect_header_col(ctx, pos.c == 1, "can't duplicate the header column") then
+            return false
+        end
         each_column_list(ctx.t, function(list)
             table.insert(list, pos.c + 1, vim.deepcopy(list[pos.c]))
         end)

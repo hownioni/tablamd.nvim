@@ -1041,11 +1041,12 @@ test("a half-typed bold cell isn't wrapped again", function()
     eq(lines()[5], "| **Pe     |     |     |")
 end)
 
-test("the header column can't be moved, deleted or have a column put before it", function()
+test("the header column can't be moved, deleted, duplicated or have a column put before it", function()
     buf(HC_PIPE_ON, { 3, 2 })
     gt.call("move_col_right")
     gt.call("delete_col")
     gt.call("insert_col_before")
+    gt.call("duplicate_col")
     eq(lines(), HC_PIPE_ON)
     api.nvim_win_set_cursor(0, { 3, 13 }) -- Mon
     gt.call("move_col_left")

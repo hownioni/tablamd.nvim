@@ -131,8 +131,8 @@ While it's on:
 
 - A row you add and type into gets its first cell bolded too, on realign or when you move to
   another cell. A cell you're writing bold by hand (`**Pe`) is left alone.
-- The column is protected: it can't be moved, deleted or have a column inserted before it, and
-  other columns can't be moved in front of it. `\tH` again turns it back into a normal column.
+- The column is protected: it can't be moved, deleted, duplicated or have a column inserted
+  before it, and other columns can't be moved in front of it. `\tH` again turns it back into a normal column.
 - Sorting by it ignores the `**` markers.
 - It combines with a header row: the header row's first cell (the corner) stays plain, and
   `\th` bolds or unbolds that cell as the row stops or starts being the header.
