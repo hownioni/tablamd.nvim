@@ -289,6 +289,20 @@ function M.new_row_above()
     end)
 end
 
+--- Copy the current row (all its lines) right below it, cursor in the copy. A copy of the
+--- header goes below the header separator, as a body row.
+function M.duplicate_row()
+    M.run(function(ctx, pos)
+        local t = ctx.t
+        local k, o = core.block_of(t, pos.i)
+        local borders, blocks = core.split_blocks(t)
+        table.insert(blocks, k + 1, vim.deepcopy(blocks[k]))
+        table.insert(borders, k + 2, core.new_border(t.ncols, "-"))
+        core.join_blocks(t, borders, blocks)
+        return { i = core.row_index(blocks, k + 1, math.max(o, 1)), c = pos.c, off = pos.off }
+    end)
+end
+
 --- Continuation line inside the current row (e.g. another bullet in a cell).
 function M.new_line()
     M.run(function(ctx, pos)
@@ -365,6 +379,17 @@ function M.delete_col(count)
         end)
         ctx.t.ncols = ctx.t.ncols - n
         return { i = pos.i, c = math.min(pos.c, ctx.t.ncols), off = 0 }
+    end)
+end
+
+--- Copy the cursor's column (cells and alignment) right beside it, cursor in the copy.
+function M.duplicate_col()
+    M.run(function(ctx, pos)
+        each_column_list(ctx.t, function(list)
+            table.insert(list, pos.c + 1, vim.deepcopy(list[pos.c]))
+        end)
+        ctx.t.ncols = ctx.t.ncols + 1
+        return { i = pos.i, c = pos.c + 1, off = pos.off }
     end)
 end
 

@@ -50,6 +50,8 @@ M.defaults = {
         insert_col_before = "<localleader>tiC",
         delete_col = "<localleader>tdc",
         delete_row = "<localleader>tdr",
+        duplicate_row = "<localleader>tyr", -- copy the row below it
+        duplicate_col = "<localleader>tyc", -- copy the column right of it
         cycle_align = "<localleader>tA",
         toggle_header = "<localleader>th",
         toggle_header_col = "<localleader>tH", -- first column as row labels (bold, protected)
@@ -84,6 +86,8 @@ M.actions = {
     move_col_left = { "edit", { "n", "i" }, "move column left", nav = true, count = "arg" },
     move_col_right = { "edit", { "n", "i" }, "move column right", nav = true, count = "arg" },
     delete_row = { "edit", { "n" }, "delete row", count = "arg" },
+    duplicate_row = { "edit", { "n" }, "duplicate row", count = "repeat" },
+    duplicate_col = { "edit", { "n" }, "duplicate column", count = "repeat" },
     move_row_down = { "edit", { "n", "i" }, "move row down", nav = true, count = "arg" },
     move_row_up = { "edit", { "n", "i" }, "move row up", nav = true, count = "arg" },
     cycle_align = { "edit", { "n" }, "cycle column alignment", count = "repeat" },
@@ -213,6 +217,7 @@ local function which_key(buf)
         { "<localleader>t", group = "Table", mode = { "n", "x" }, buffer = buf },
         { "<localleader>ti", group = "Insert", buffer = buf },
         { "<localleader>td", group = "Delete", buffer = buf },
+        { "<localleader>ty", group = "Duplicate", buffer = buf },
     })
 end
 

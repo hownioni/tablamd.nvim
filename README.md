@@ -60,6 +60,7 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 | `\tic` / `\tiC`     | `insert_col` / `insert_col_before` | Insert a column right/left of the cursor                                                                          |
 | `\tdc`              | `delete_col`                       | Delete the column                                                                                                 |
 | `\tdr`              | `delete_row`                       | Delete the row and yank it (`p` on a border line pastes it back)                                                  |
+| `\tyr` / `\tyc`     | `duplicate_row` / `duplicate_col`  | Copy the row below it / the column right of it (cursor moves into the copy)                                       |
 | `\tA`               | `cycle_align`                      | Cycle the column's alignment: default, left, center, right                                                        |
 | `\th`               | `toggle_header`                    | Make the first row the header, or a normal row                                                                    |
 | `\tH`               | `toggle_header_col`                | Make the first column a header column (bold row labels, protected), or a normal column                           |
@@ -103,9 +104,9 @@ keymap = {
 
 `try(action)` runs the action and returns `true` only when the cursor is in a table.
 
-Counts work like Vim's: `3<Tab>`, `2<CR>`, `3<A-o>` and `2\tic` repeat, `5\tdr` deletes (and
-yanks) five rows as one change, `2\tdc` deletes two columns and `3<A-j>`/`2<A-l>` move a row or
-column that many places. Deleting is clamped so the table keeps one body row and one column.
+Counts work like Vim's: `3<Tab>`, `2<CR>`, `3<A-o>`, `2\tic` and `2\tyr` repeat, `5\tdr`
+deletes (and yanks) five rows as one change, `2\tdc` deletes two columns and `3<A-j>`/`2<A-l>`
+move a row or column that many places. Deleting is clamped so the table keeps one body row and one column.
 
 Every action is also available as `:TablaMd {action}`, e.g. `:TablaMd sort`,
 `:TablaMd delete_row 3` (with a count) or `:'<,'>TablaMd convert`.

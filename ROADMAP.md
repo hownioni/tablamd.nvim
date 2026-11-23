@@ -43,11 +43,6 @@ approach is going through `operatorfunc` (`g@l`) so `.` replays the action.
 Yank a whole column (cells of every row) and paste it as a new column, in the same table or
 another one. Could use a register with a recognizable shape or a plugin-local register.
 
-### Duplicate a row or column
-
-Copy the current row/column right below/beside it. Rows can already be done with `\tdr` + `p`
-(+ `u`), but a direct action is quicker.
-
 ### Transpose
 
 Swap rows and columns. For grid tables, only when rows are single lines (or join them first).
