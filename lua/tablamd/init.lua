@@ -14,6 +14,9 @@ M.defaults = {
     escape_pipes = true,
     -- what \tn creates: "pipe", "grid", or "ask" (asks each time, last choice first)
     new_table_format = "pipe",
+    -- wrap grid-table cells on realign so the table is at most this wide (borders included,
+    -- indentation not); match pandoc's --columns. false: off (per buffer: b:tablamd_max_width)
+    max_width = false,
     -- wrap new/converted grid tables in <!-- prettier-ignore-start/end -->
     prettier_ignore = true,
     pandoc = {
@@ -59,6 +62,7 @@ M.defaults = {
         sort_desc = "<localleader>tS",
         join_row = "<localleader>tj",
         break_row = "<localleader>tb",
+        rewrap = "<localleader>tw", -- rewrap every cell to fit max_width (80 when off)
         inner_cell = "ic",
         outer_cell = "ac",
     },
@@ -97,6 +101,7 @@ M.actions = {
     sort_desc = { "edit", { "n" }, "sort rows by column (descending)" },
     join_row = { "edit", { "n" }, "join row lines" },
     break_row = { "edit", { "n" }, "break row into rows" },
+    rewrap = { "edit", { "n" }, "rewrap cells to max width" },
     inner_cell = { "textobj", { "x", "o" }, "inner cell" },
     outer_cell = { "textobj", { "x", "o" }, "around cell" },
 }

@@ -3,6 +3,7 @@
 -- writes it back realigned and puts the cursor on the requested cell.
 local core = require("tablamd.core")
 local headcol = require("tablamd.headcol")
+local wrap = require("tablamd.wrap")
 
 local M = {}
 
@@ -113,6 +114,10 @@ function M.run(fn, opts)
             return nil
         end
         target = target or pos
+    end
+    local max = wrap.max_width(buf)
+    if max then
+        wrap.fit(ctx.t, max, false, target)
     end
     M.write(ctx, opts)
     M.place(ctx, target)
@@ -696,6 +701,19 @@ end
 
 function M.sort_desc()
     sort_rows(true)
+end
+
+-- Wrapping ----------------------------------------------------------------------
+
+--- Rewrap every cell from scratch to fit max_width (80 when it's off): paragraphs are joined
+--- and wrapped again, so text flows back up after a cell got shorter.
+function M.rewrap()
+    M.run(function(ctx, pos)
+        if not grid_only(ctx, "wrapping cells") then
+            return false
+        end
+        wrap.fit(ctx.t, wrap.max_width(ctx.buf) or 80, true, pos)
+    end)
 end
 
 -- Joining / splitting multi-line rows -------------------------------------------

@@ -16,15 +16,10 @@ Copying a range from LibreOffice or Google Sheets puts tab-separated text on the
 `\tp` would turn it into a table (in `new_table_format`), and an export action would write the
 table under the cursor as CSV (or copy it as TSV). Useful for tables like contact lists.
 
-### ★ Column widths for the PDF (grid tables)
+### Per-column widths
 
-When a grid table is wider than pandoc's `--columns`, pandoc sizes PDF columns in proportion to
-their width in the source. A command to set a column's width and rewrap its cells (without
-pandoc rewriting the text the way `\tC` does) would control the PDF layout. Today the longest
-cell decides the whole table's layout.
-
-Notes: wrap at word boundaries into continuation lines of the same row; keep list items
-(`- …`) on their own lines; maybe a `max_width` option applied on realign.
+`max_width` wraps the whole table to a width, shrinking the widest columns first. A command to fix a
+single column's width (kept on realign) would give finer control over the PDF layout.
 
 ### Table captions
 

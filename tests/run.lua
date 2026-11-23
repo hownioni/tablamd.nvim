@@ -1097,6 +1097,189 @@ test("sorting ignores the bold markers", function()
     eq({ body_col(1)[3], body_col(1)[4] }, { "**9**", "**10**" })
 end)
 
+-- Wrapping to max_width ---------------------------------------------------------
+
+local LONG = {
+    "+---+---+",
+    "| Name | Notes |",
+    "+===+===+",
+    "| Ana | one two three four five six seven eight |",
+    "+---+---+",
+}
+
+test("max_width wraps the widest column at word boundaries", function()
+    buf(LONG, { 4, 2 })
+    vim.b.tablamd_max_width = 30
+    gt.call("align")
+    eq(lines(), {
+        "+------+--------------------+",
+        "| Name | Notes              |",
+        "+======+====================+",
+        "| Ana  | one two three four |",
+        "|      | five six seven     |",
+        "|      | eight              |",
+        "+------+--------------------+",
+    })
+end)
+
+test("max_width off by default: nothing wraps", function()
+    buf(LONG, { 4, 2 })
+    gt.call("align")
+    eq(#lines(), 5)
+end)
+
+test("wrapping shrinks the widest columns first, never below the longest word", function()
+    buf({
+        "+---+---+",
+        "| aaaa bbbb cccc dddd | x |",
+        "+---+---+",
+        "| supercalifragilistic | y |",
+        "+---+---+",
+    }, { 2, 2 })
+    vim.b.tablamd_max_width = 10
+    gt.call("align")
+    eq(lines(), {
+        "+----------------------+---+",
+        "| aaaa bbbb cccc dddd  | x |",
+        "+----------------------+---+",
+        "| supercalifragilistic | y |",
+        "+----------------------+---+",
+    })
+end)
+
+test("list items keep a hanging indent; markers never start a line", function()
+    buf({
+        "+---+",
+        "| - first item is long enough 5 - 10 |",
+        "| - second |",
+        "|   |",
+        "| plain paragraph after a blank line |",
+        "+---+",
+    }, { 2, 2 })
+    vim.b.tablamd_max_width = 20
+    gt.call("align")
+    eq(lines(), {
+        "+-----------------+",
+        "| - first item is |",
+        "|   long enough   |",
+        "|   5 - 10        |",
+        "| - second        |",
+        "|                 |",
+        "| plain paragraph |",
+        "| after a blank   |",
+        "| line            |",
+        "+-----------------+",
+    })
+end)
+
+test("lines that already fit are left as typed; code blocks are never wrapped", function()
+    local t = {
+        "+---+--------------------------+",
+        "| a | short                    |",
+        "|   | lines                    |",
+        "+---+--------------------------+",
+        "| b | ```                      |",
+        "|   | x = some(code, here) + 1 |",
+        "|   | ```                      |",
+        "+---+--------------------------+",
+    }
+    buf(t, { 2, 2 })
+    vim.b.tablamd_max_width = 20
+    gt.call("align")
+    eq(lines(), t)
+end)
+
+test("the cursor follows its word into a continuation line", function()
+    buf(LONG, { 4, 36 }) -- on `seven`
+    vim.b.tablamd_max_width = 30
+    gt.call("align")
+    eq(cursor()[1], 5)
+    eq(api.nvim_get_current_line():sub(cursor()[2] + 1, cursor()[2] + 5), "seven")
+end)
+
+test("typing past the width on InsertLeave rewraps, undone with one u", function()
+    buf({
+        "+-----+--------------------+",
+        "| Ana | one two three four |",
+        "+-----+--------------------+",
+    }, { 2, 25 })
+    vim.b.tablamd_max_width = 30
+    keys("a five<Esc>")
+    eq(lines(), {
+        "+-----+--------------------+",
+        "| Ana | one two three four |",
+        "|     | five               |",
+        "+-----+--------------------+",
+    })
+    eq(cursor(), { 3, 11 })
+    keys("u")
+    eq(lines()[2], "| Ana | one two three four |")
+end)
+
+test("rewrap joins and rewraps every cell, pulling text back up", function()
+    buf({
+        "+-----+---------+",
+        "| Ana | one two |",
+        "|     | three   |",
+        "|     | four    |",
+        "+-----+---------+",
+    }, { 3, 8 })
+    gt.call("rewrap")
+    eq(lines(), {
+        "+-----+--------------------+",
+        "| Ana | one two three four |",
+        "+-----+--------------------+",
+    })
+    eq(cell_text(), "three four")
+    vim.b.tablamd_max_width = 20
+    gt.call("rewrap")
+    eq(lines(), {
+        "+-----+------------+",
+        "| Ana | one two    |",
+        "|     | three four |",
+        "+-----+------------+",
+    })
+end)
+
+test("a wrapped header column is bolded line by line and stays one", function()
+    buf({
+        "+---+---+",
+        "| Name | x |",
+        "+===+===+",
+        "| **Ana María López** | 1 |",
+        "+---+---+",
+        "| **Luis** | 2 |",
+        "+---+---+",
+    }, { 4, 4 })
+    vim.b.tablamd_max_width = 16
+    gt.call("align")
+    eq(lines(), {
+        "+-----------+---+",
+        "| Name      | x |",
+        "+===========+===+",
+        "| **Ana**   | 1 |",
+        "| **María** |   |",
+        "| **López** |   |",
+        "+-----------+---+",
+        "| **Luis**  | 2 |",
+        "+-----------+---+",
+    })
+    eq(require("tablamd.headcol").active(require("tablamd.edit").load(0, 1).t), true)
+end)
+
+test("pipe tables aren't wrapped; rewrap refuses them", function()
+    local t = {
+        "| a   | b                       |",
+        "| --- | ----------------------- |",
+        "| x   | one two three four five |",
+    }
+    buf(t, { 3, 2 })
+    vim.b.tablamd_max_width = 20
+    gt.call("align")
+    gt.call("rewrap")
+    eq(lines(), t)
+end)
+
 test("in_table is cheap: only reads the table's lines", function()
     local big = {}
     for i = 1, 20000 do

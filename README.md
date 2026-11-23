@@ -67,6 +67,7 @@ With [lazy.nvim](https://github.com/folke/lazy.nvim):
 | `\ts` / `\tS`       | `sort` / `sort_desc`               | Sort body rows by the column (numbers numerically, accents folded)                                                |
 | `\tj`               | `join_row`                         | Join a multi-line row into one line                                                                               |
 | `\tb`               | `break_row`                        | Break a multi-line row into one row per line                                                                      |
+| `\tw`               | `rewrap`                           | Rewrap every cell from scratch to fit `max_width` (80 when it's off), see [Wrapping](#wrapping-to-a-width)        |
 | `ic` / `ac`         | `inner_cell` / `outer_cell`        | Text objects: cell content / everything between the pipes                                                         |
 
 `\` is `<localleader>`. The navigation keys work in normal and insert mode, and only inside a
@@ -137,6 +138,32 @@ While it's on:
 - It combines with a header row: the header row's first cell (the corner) stays plain, and
   `\th` bolds or unbolds that cell as the row stops or starts being the header.
 
+## Wrapping to a width
+
+Set `max_width` (or `vim.b.tablamd_max_width` for one buffer) and every realign, including the
+automatic one on `InsertLeave`, wraps grid-table cells so the table fits in that many columns.
+Set it to the `--columns` you give pandoc (80 by default). Pandoc then sizes the PDF columns from
+the table as written, and no single long cell takes over the layout. No more padding cells by hand.
+
+```
++------+--------------------+
+| Name | Notes              |
++======+====================+
+| Ana  | one two three four |
+|      | five six seven     |
+|      | eight              |
++------+--------------------+
+```
+
+- The widest columns shrink first, and no column gets narrower than its longest word.
+- Only a paragraph with a line that's too wide is rewrapped. Lines you broke yourself that already fit stay
+  as they are. `\tw` rewraps everything from scratch, so text flows back up after you shorten a cell.
+- List items keep their marker and a hanging indent. Blank lines, headings, quotes and code blocks
+  are never wrapped. A word like `-` or `1.` is never moved to the start of a line, where it
+  would turn into a list item.
+- A header column stays bold: each wrapped line is bolded (`**Ana**`, `**María**`).
+- Pipe tables are left alone, since their rows are single lines (`\tc` converts).
+
 ## Pipe tables
 
 Everything works on pipe tables too, except what needs a multi-line row or an optional header:
@@ -162,6 +189,7 @@ require("tablamd").setup({
     nowrap = true,
     new_table_format = "pipe", -- "grid", "pipe", or "ask" (last choice offered first)
     prettier_ignore = true, -- wrap new/converted grid tables in prettier-ignore markers
+    max_width = false, -- e.g. 80: wrap grid-table cells to fit (per buffer: vim.b.tablamd_max_width)
     pandoc = {
         "pandoc", "-f", "markdown",
         "-t", "markdown-pipe_tables-simple_tables-multiline_tables+grid_tables",
